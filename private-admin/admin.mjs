@@ -2,9 +2,9 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 const html = `<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Zest Hub private upload</title>
-<style>body{font:16px system-ui;background:#101118;color:#fff;max-width:35rem;margin:4rem auto;padding:1rem}
-main{background:#1b1c27;border:1px solid #35364a;border-radius:14px;padding:2rem}h1{margin-top:0}
-input,button{display:block;margin:1rem 0}button{background:#8b73ff;color:white;border:0;border-radius:8px;padding:.8rem 1.2rem;cursor:pointer}p{line-height:1.5}</style>
+<link rel="stylesheet" href="https://zesthub.win/style.css">
+<style>body{max-width:35rem;margin:0 auto}main{background:#202020;border:1px solid #363636;border-radius:14px;padding:2rem}
+h1{margin-top:0}input,button{display:block;margin:1rem auto}p{line-height:1.5}</style>
 <main><h1>Private DLL upload</h1><p>Upload the latest ZestHub.dll. This replaces the current private download.</p>
 <form id="upload"><input type="file" id="file" accept=".dll" required><button>Upload DLL</button></form>
 <p id="status" role="status"></p></main><script>
@@ -33,7 +33,7 @@ export default {
     if (!env.DLL_BUCKET || !await authorize(request, env)) return new Response('Forbidden', { status: 403 });
     const url = new URL(request.url);
     const headers = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'" };
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline' https://zesthub.win; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'" };
     if (url.pathname === '/' && request.method === 'GET')
       return new Response(html, { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
     if (url.pathname === '/upload' && request.method === 'PUT') {

@@ -2,3 +2,4 @@ node_modules/
 .wrangler/
 .wrangler-test/
 .dev.vars
+.npm-cache/

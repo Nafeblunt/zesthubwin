@@ -1,0 +1,22 @@
+name = "zesthub-license-download"
+main = "license-worker.mjs"
+compatibility_date = "2026-11-07"
+workers_dev = false
+
+[[routes]]
+pattern = "download.zesthub.win"
+custom_domain = true
+
+[[r2_buckets]]
+binding = "DLL_BUCKET"
+bucket_name = "zesthub-private"
+
+[[d1_databases]]
+binding = "LICENSE_DB"
+database_name = "zesthub-licenses"
+database_id = "8cbce4a0-5a6a-45a1-90b7-a5afc59d64e7"
+
+[[ratelimits]]
+name = "LOGIN_LIMIT"
+namespace_id = "12346"
+simple = { limit = 10, period = 60 }

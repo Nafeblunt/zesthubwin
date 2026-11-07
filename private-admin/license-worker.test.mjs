@@ -39,3 +39,17 @@ test('license claim, device reset, ban, expiry and revocation gate storage', asy
   assert.equal(await attempt(username, 'device-three'), 200);
   assert.equal(db.prepare('SELECT expires_at FROM licenses WHERE id=?').get('id').expires_at, 253402300799);
 });
+
+test('duration edits use activation time and preserve unused and lifetime behavior', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
+  db.prepare('INSERT INTO licenses (id,key_hash,created_at,duration_seconds,activated_at) VALUES (?,?,?,?,?)').run('id', 'hash', 1, 3600, 1000);
+  const update = db.prepare('UPDATE licenses SET duration_seconds=?, expires_at=CASE WHEN activated_at IS NULL THEN NULL WHEN ?=253402300799 THEN 253402300799 ELSE activated_at+? END WHERE id=? RETURNING id');
+  update.get(86400,86400,86400,'id');
+  assert.equal(db.prepare('SELECT expires_at FROM licenses').get().expires_at, 87400);
+  update.get(253402300799,253402300799,253402300799,'id');
+  assert.equal(db.prepare('SELECT expires_at FROM licenses').get().expires_at, 253402300799);
+  db.exec('UPDATE licenses SET activated_at=NULL');
+  update.get(3600,3600,3600,'id');
+  assert.equal(db.prepare('SELECT expires_at FROM licenses').get().expires_at, null);
+});

@@ -2,14 +2,19 @@
 
 ## License dashboard
 
-The owner dashboard can create up to 100 high-entropy license keys at a time, display them once,
+The owner dashboard can create up to 100 high-entropy license keys at a time,
 and list licenses. A key becomes active on its first successful sign-in; its
 duration starts then. Hour, day, week, 30-day month, 365-day year, and lifetime
 durations are supported. Lifetime uses an expiry of 9999-12-31 and can still be
 revoked. First use binds the license to the entered username and
 device ID. The owner can reset that binding, ban or unban the bound device, or
 revoke a license. Unban a banned device before resetting it so it remains
-manageable from the dashboard. License keys are stored as SHA-256 hashes.
+manageable from the dashboard. The Edit menu can change a duration and reveal
+keys created after the key-vault update. Earlier keys were only hashed and cannot
+be recovered. Authentication uses SHA-256 key hashes; newer keys also have an
+AES-GCM encrypted copy, protected by the Cloudflare Worker secret `KEY_VAULT_SECRET`.
+Do not replace or delete this secret: doing so makes stored keys unrecoverable.
+Editing an activated license calculates expiry from its original activation time.
 
 The download Worker validates license, username, device, expiry, revocation,
 and device bans using D1 before returning the private R2 object. The loader uses

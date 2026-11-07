@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import dashboard from './dashboard.mjs';
+import { sealKey, openKey } from './key-vault.mjs';
 
 const html = `<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Zest Hub private upload</title>
@@ -70,10 +71,32 @@ export default {
               !Number.isInteger(count) || count < 1 || count > 100) return new Response('Invalid duration or quantity', { status: 400, headers });
           const duration = unit === 'lifetime' ? seconds.lifetime : quantity * seconds[unit];
           const keys = Array.from({ length: count }, () => 'ZEST-' + randomHex(24).toUpperCase());
-          const statements = await Promise.all(keys.map(async key => env.LICENSE_DB.prepare('INSERT INTO licenses (id,key_hash,created_at,duration_seconds) VALUES (?,?,?,?)')
-            .bind(randomHex(12), await hash(key), Math.floor(Date.now()/1000), duration)));
+          const statements = await Promise.all(keys.map(async key => {
+            const id = randomHex(12);
+            return env.LICENSE_DB.prepare('INSERT INTO licenses (id,key_hash,created_at,duration_seconds,key_ciphertext) VALUES (?,?,?,?,?)')
+              .bind(id, await hash(key), Math.floor(Date.now()/1000), duration, await sealKey(env.KEY_VAULT_SECRET, id, key));
+          }));
           await env.LICENSE_DB.batch(statements);
           return Response.json({ keys }, { status: 201, headers });
+        }
+        const reveal = /^\/api\/licenses\/([a-f0-9]{24})\/key$/.exec(url.pathname);
+        if (reveal && request.method === 'GET') {
+          const row = await env.LICENSE_DB.prepare('SELECT key_ciphertext FROM licenses WHERE id=?').bind(reveal[1]).first();
+          if (!row) return new Response('Not found', { status: 404, headers });
+          if (!row.key_ciphertext) return Response.json({ key: null }, { headers });
+          return Response.json({ key: await openKey(env.KEY_VAULT_SECRET, reveal[1], row.key_ciphertext) }, { headers });
+        }
+        const edit = /^\/api\/licenses\/([a-f0-9]{24})\/duration$/.exec(url.pathname);
+        if (edit && request.method === 'POST') {
+          const length = Number(request.headers.get('Content-Length'));
+          if (!length || length > 1024) return new Response('Invalid request', { status: 400, headers });
+          const { unit, quantity } = await request.json();
+          const seconds = { hour: 3600, day: 86400, week: 604800, month: 2592000, year: 31536000, lifetime: 253402300799 };
+          if (!Object.hasOwn(seconds, unit) || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) return new Response('Invalid duration', { status: 400, headers });
+          const duration = unit === 'lifetime' ? seconds.lifetime : quantity * seconds[unit];
+          const result = await env.LICENSE_DB.prepare('UPDATE licenses SET duration_seconds=?, expires_at=CASE WHEN activated_at IS NULL THEN NULL WHEN ?=253402300799 THEN 253402300799 ELSE activated_at+? END WHERE id=? RETURNING id').bind(duration, duration, duration, edit[1]).first();
+          if (!result) return new Response('Not found', { status: 404, headers });
+          return Response.json({ ok: true }, { headers });
         }
         const match = /^\/api\/licenses\/([a-f0-9]{24})\/(reset|ban|unban|revoke)$/.exec(url.pathname);
         if (match && request.method === 'POST') {

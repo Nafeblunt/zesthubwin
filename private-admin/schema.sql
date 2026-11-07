@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS licenses (
   id TEXT PRIMARY KEY,
   key_hash TEXT NOT NULL UNIQUE,
+  key_ciphertext TEXT,
   created_at INTEGER NOT NULL,
   duration_seconds INTEGER NOT NULL CHECK (duration_seconds > 0),
   username TEXT,

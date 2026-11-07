@@ -1,4 +1,6 @@
 const SITE = 'https://zesthub.win';
+import { handleSandboxPayment } from '../payments/routes.mjs';
+import { PayPalSandbox } from '../payments/paypal-client.mjs';
 const REDIRECT = 'https://login.zesthub.win/callback';
 const SESSION = '__Host-zest_session';
 const STATE = '__Host-zest_oauth_state';
@@ -44,6 +46,21 @@ export default {
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
     let stage = 'request';
     try {
+      if (url.pathname.startsWith('/sandbox/payments/')) {
+        if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_CLIENT_ID ||
+            !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID || !env.SANDBOX_VAULT_SECRET || !env.SANDBOX_LIMIT)
+          return json(request, { error: 'Sandbox checkout is not configured.' }, 503);
+        if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
+        const token = cookies(request)[SESSION];
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        const session = await env.DB.prepare('SELECT discord_id FROM website_sessions WHERE session_hash=? AND expires_at>?')
+          .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
+        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        const paypal = new PayPalSandbox({ clientId: env.PAYPAL_SANDBOX_CLIENT_ID,
+          clientSecret: env.PAYPAL_SANDBOX_CLIENT_SECRET, merchantId: env.PAYPAL_SANDBOX_MERCHANT_ID });
+        return handleSandboxPayment(request, session.discord_id, { db: env.SANDBOX_DB, paypal,
+          vaultSecret: env.SANDBOX_VAULT_SECRET, merchantId: env.PAYPAL_SANDBOX_MERCHANT_ID, limiter: env.SANDBOX_LIMIT });
+      }
       if (url.pathname === '/start' && request.method === 'GET') {
         const state = random();
         const authorization = new URL('https://discord.com/oauth2/authorize');

@@ -7,6 +7,9 @@ workers_dev = false
 DISCORD_CLIENT_ID = "1568754980708552867"
 DISCORD_GUILD_ID = "1568752937986162728"
 DISCORD_BUYER_ROLE_ID = "1568754660033036480"
+PAYMENTS_SANDBOX_ENABLED = "false"
+PAYPAL_SANDBOX_CLIENT_ID = "AZwEYwbHEevB3ncUwXQMywUzngd2IsB0EPTwn_eojVB5XTEyyL0-gaVeWtzcRy1Hbqsh4w2nNB6kpHBp"
+PAYPAL_SANDBOX_MERCHANT_ID = "NR7XB9M7MHAYJ"
 
 [[routes]]
 pattern = "login.zesthub.win"
@@ -16,3 +19,13 @@ custom_domain = true
 binding = "DB"
 database_name = "zesthub-licenses"
 database_id = "8cbce4a0-5a6a-45a1-90b7-a5afc59d64e7"
+
+[[d1_databases]]
+binding = "SANDBOX_DB"
+database_name = "zesthub-payments-sandbox"
+database_id = "d51708e8-bbd2-4441-981d-ffa7926aae80"
+
+[[ratelimits]]
+name = "SANDBOX_LIMIT"
+namespace_id = "12347"
+simple = { limit = 20, period = 60 }

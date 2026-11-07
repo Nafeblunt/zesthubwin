@@ -35,6 +35,11 @@ test('an anonymous session is returned as signed out', async () => {
   assert.deepEqual(await r.json(), { user: null, buyer: false });
   assert.equal(r.headers.get('access-control-allow-origin'), 'https://zesthub.win');
 });
+test('sandbox checkout stays disabled unless explicitly configured', async () => {
+  const request = new Request('https://login.zesthub.win/sandbox/payments/config', { headers: { Origin: 'https://zesthub.win' } });
+  const r = await worker.fetch(request, env);
+  assert.equal(r.status, 503);
+});
 test('role check allows Buyer and higher roles, denies lower and non-members', async () => {
   const original = globalThis.fetch;
   const config = { DISCORD_BOT_TOKEN: 'test', DISCORD_GUILD_ID: '123456789012345678', DISCORD_BUYER_ROLE_ID: '123456789012345680' };

@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "zesthub-discord-login" generated at 2026-11-07T23:50:24.551Z.

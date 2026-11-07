@@ -12,20 +12,22 @@ and checks the order ID, merchant, purchase reference, amount, currency and
 completed capture. Never feed it a browser-provided order as proof of payment.
 `checkout.mjs` and `fulfillment.mjs` provide server-side order and transactional,
 idempotent license creation primitives for a purchase already tied to a verified
-Discord identity. They are not connected to a public endpoint or PayPal and have
-only been tested with a local database and mocked PayPal responses.
+Discord identity. `routes.mjs` is wired to the Discord login Worker behind the
+disabled `PAYMENTS_SANDBOX_ENABLED` flag. It uses a separate sandbox database;
+test licenses cannot unlock the live loader. `sandbox.html` and `sandbox.js` are
+a local-only test page. The entire flow has only been tested with local databases
+and mocked PayPal responses; it is not yet validated with PayPal sandbox.
 
 Still required before accepting payments:
 
-- Associate an authenticated Discord session with a server-created purchase and
-  PayPal order, using PayPal's supported Orders API or a verified hosted-button
-  integration. A regular PayPal REST app and sandbox credentials may be needed;
-  the hosted button's public identifier is not an API client secret.
+- Configure the sandbox REST application secret privately as the Worker secret
+  `PAYPAL_SANDBOX_CLIENT_SECRET`, then enable and test the sandbox flow. The
+  hosted button's public identifier is not an API client secret.
 - Implement capture confirmation and recovery through server-side PayPal APIs
   and verified webhooks; make capture and fulfillment idempotent. Reconcile
   timeouts and duplicates, handle refunds/reversals, and log no secrets or keys.
-- Connect the transactional license creation primitive to authenticated routes
-  and make the key available only to the Discord account that initiated the order.
+- Verify the sandbox account ID matches PayPal's reported merchant ID and that
+  account-owned purchase history works after a browser restart or lost response.
 - Test sandbox success, cancel, pending, duplicate, mismatch, refund and service
   failure paths end to end, then complete PayPal account setup before enabling
   live checkout. Existing public DLL copies remain outside this protection.

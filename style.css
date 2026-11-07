@@ -1,22 +1,95 @@
 ﻿body {
-  font-family: Arial, sans-serif;
+  font-family: Comic Sans MS, Comic Sans, cursive;
   background: #151515;
-  color: rgb(255, 255, 255);
+  color: #ffffff;
   text-align: center;
   padding: 80px 20px;
+  margin: 0;
 }
 
-text {
+.loader {
+  font-size: 24px;
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.6s ease;
+}
+
+.loader.fade-out { opacity: 0; }
+
+#typewriter::after {
+  content: "|";
+  margin-left: 2px;
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+.hero {
   font-size: 20px;
-  padding: -50px;
   animation: fadeIn 2s ease-in-out;
 }
 
+.hero.hidden { display: none; }
+
+
+.login {
+  font-size: 20px;
+  margin-top: 40px;
+  animation: fadeIn 2s ease-in-out;
+}
+
+.login.hidden { display: none; }
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.login-form input {
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 30px 15px;
+  font-size: 16px;
+  color: #fff;
+  font-family: inherit;
+  width: 220px;
+  text-align: center;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: rgb(119, 0, 255);
+}
+
 button {
-  background: #b5f542;
+  font-family: Comic Sans MS, Comic Sans, cursive;
+  background: rgba(66, 138, 245, 0);
   border: 0;
   border-radius: 8px;
-  padding: 12px 20px;
+  padding: 10px 15px;
   font-size: 16px;
+  color: #ffffff;
   cursor: pointer;
+}
+
+button:hover { 
+  color: rgb(119, 0, 255); 
+  animation: Rotate 1s linear infinite;
+
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes Rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }

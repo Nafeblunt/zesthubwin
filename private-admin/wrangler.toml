@@ -1,0 +1,10 @@
+name = "zesthub-private-admin"
+main = "admin.mjs"
+compatibility_date = "2026-11-07"
+workers_dev = false
+
+# Add ACCESS_TEAM_DOMAIN, ACCESS_AUD and OWNER_EMAIL as Worker variables.
+# Configure a separate Cloudflare Access application for the admin hostname.
+[[r2_buckets]]
+binding = "DLL_BUCKET"
+bucket_name = "zesthub-private"

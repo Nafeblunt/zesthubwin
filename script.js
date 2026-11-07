@@ -65,7 +65,7 @@ if (new URLSearchParams(window.location.search).get("login") === "failed") {
 }
 updateLogin();
 
-document.querySelectorAll("button").forEach((button) => {
+document.querySelectorAll("button, .button-link").forEach((button) => {
   button.addEventListener("pointermove", (event) => {
     if (event.pointerType === "touch") return;
     const bounds = button.getBoundingClientRect();

@@ -23,6 +23,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
+    let stage = 'request';
     try {
       if (url.pathname === '/start' && request.method === 'GET') {
         const state = random();
@@ -35,6 +36,7 @@ export default {
         const clear = cookie(STATE, '', 0);
         if (!state || !expected || !/^[a-f0-9]{64}$/.test(state) || state !== expected || !url.searchParams.get('code'))
           return redirect(`${SITE}/?login=failed`, [clear]);
+        stage = 'discord-token';
         const tokenResponse = await fetch('https://discord.com/api/oauth2/token', { method: 'POST', redirect: 'error',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, client_secret: env.DISCORD_CLIENT_SECRET,
@@ -42,11 +44,13 @@ export default {
         if (!tokenResponse.ok) return redirect(`${SITE}/?login=failed`, [clear]);
         const token = await tokenResponse.json();
         if (typeof token.access_token !== 'string' || token.token_type?.toLowerCase() !== 'bearer') return redirect(`${SITE}/?login=failed`, [clear]);
+        stage = 'discord-identity';
         const identity = await fetch('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${token.access_token}` }, redirect: 'error' });
         if (!identity.ok) return redirect(`${SITE}/?login=failed`, [clear]);
         const user = await identity.json();
         if (!/^\d{15,22}$/.test(user.id) || typeof user.username !== 'string' || user.username.length > 100) return redirect(`${SITE}/?login=failed`, [clear]);
         const session = random(), now = Math.floor(Date.now() / 1000);
+        stage = 'session-store';
         await env.DB.prepare('INSERT INTO website_sessions (session_hash,discord_id,username,expires_at) VALUES (?,?,?,?)')
           .bind(await sha(session), user.id, user.global_name || user.username, now + TIMEOUT).run();
         return redirect(SITE + '/', [clear, cookie(SESSION, session, TIMEOUT)]);
@@ -66,6 +70,10 @@ export default {
         return json(request, { ok: true }, 200, [cookie(SESSION, '', 0)]);
       }
       return json(request, { error: 'Not found' }, 404);
-    } catch { return json(request, { error: 'Login temporarily unavailable.' }, 503); }
+    } catch (error) {
+      console.error('Discord login failed at', stage, 'error type:', error?.name || 'Error');
+      if (url.pathname === '/callback') return redirect(`${SITE}/?login=failed`, [cookie(STATE, '', 0)]);
+      return json(request, { error: 'Login temporarily unavailable.' }, 503);
+    }
   }
 };

@@ -69,7 +69,7 @@
   border-color: rgb(119, 0, 255);
 }
 
-button {
+button, .button-link {
   font-family: Comic Sans MS, Comic Sans, cursive;
   background: rgba(66, 138, 245, 0);
   border: 0;
@@ -81,7 +81,12 @@ button {
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
-button:hover { 
+.button-link {
+  display: inline-block;
+  text-decoration: none;
+}
+
+button:hover, .button-link:hover { 
   color: rgb(119, 0, 255); 
   transform: rotate(var(--hover-tilt, 0deg));
 }
@@ -92,6 +97,6 @@ button:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  button { transition: none; }
-  button:hover { transform: none; }
+  button, .button-link { transition: none; }
+  button:hover, .button-link:hover { transform: none; }
 }

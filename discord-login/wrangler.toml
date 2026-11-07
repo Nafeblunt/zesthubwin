@@ -5,6 +5,8 @@ workers_dev = false
 
 [vars]
 DISCORD_CLIENT_ID = "1568754980708552867"
+DISCORD_GUILD_ID = "1568752937986162728"
+DISCORD_BUYER_ROLE_ID = "1568754660033036480"
 
 [[routes]]
 pattern = "login.zesthub.win"

@@ -19,6 +19,25 @@ function json(request, value, status = 200, values = []) {
   return new Response(JSON.stringify(value), { status, headers });
 }
 
+export async function hasBuyerAccess(discordId, env) {
+  if (!env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_GUILD_ID || '') ||
+      !/^\d{15,22}$/.test(env.DISCORD_BUYER_ROLE_ID || '')) throw new Error('Role check is not configured');
+  const base = `https://discord.com/api/v10/guilds/${env.DISCORD_GUILD_ID}`;
+  const options = { headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` }, redirect: 'manual' };
+  const [member, roles, guild] = await Promise.all([
+    fetch(`${base}/members/${discordId}`, options), fetch(`${base}/roles`, options), fetch(base, options)
+  ]);
+  if (member.status === 404) return false;
+  if (!member.ok || !roles.ok || !guild.ok) throw new Error('Discord role lookup failed');
+  const [memberData, roleData, guildData] = await Promise.all([member.json(), roles.json(), guild.json()]);
+  if (guildData.owner_id === discordId) return true;
+  if (!Array.isArray(roleData) || !Array.isArray(memberData.roles)) throw new Error('Invalid Discord role data');
+  const buyer = roleData.find(role => role.id === env.DISCORD_BUYER_ROLE_ID);
+  if (!buyer || !Number.isInteger(buyer.position) || !/^\d+$/.test(buyer.id)) throw new Error('Buyer role not found');
+  return roleData.some(role => memberData.roles.includes(role.id) && Number.isInteger(role.position) && /^\d+$/.test(role.id) &&
+    (role.position > buyer.position || (role.position === buyer.position && BigInt(role.id) <= BigInt(buyer.id))));
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -72,10 +91,12 @@ export default {
       if (url.pathname === '/me' && request.method === 'GET') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
         const token = cookies(request)[SESSION];
-        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { user: null });
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { user: null, buyer: false });
         const row = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
-        return json(request, { user: row ? { id: row.discord_id, name: row.username } : null });
+        if (!row) return json(request, { user: null, buyer: false });
+        const buyer = await hasBuyerAccess(row.discord_id, env);
+        return json(request, { user: { id: row.discord_id, name: row.username }, buyer });
       }
       if (url.pathname === '/logout' && request.method === 'POST') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);

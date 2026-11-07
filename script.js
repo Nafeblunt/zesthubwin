@@ -30,6 +30,8 @@ const logoutButton = document.getElementById("logout-btn");
 const discordUser = document.getElementById("discord-user");
 const loginStatus = document.getElementById("login-status");
 const loginService = "https://login.zesthub.win";
+const downloadButton = document.getElementById("download-btn");
+const buyButton = document.getElementById("buy-btn");
 
 loginButton.addEventListener("click", () => {
   window.location.assign(`${loginService}/start`);
@@ -39,13 +41,18 @@ async function updateLogin() {
   try {
     const response = await fetch(`${loginService}/me`, { credentials: "include" });
     if (!response.ok) throw new Error("Login unavailable");
-    const { user } = await response.json();
+    const { user, buyer } = await response.json();
     discordUser.textContent = user ? `Signed in as ${user.name}` : "";
     discordUser.hidden = !user;
     logoutButton.hidden = !user;
     loginButton.hidden = Boolean(user);
+    downloadButton.hidden = !buyer;
+    buyButton.hidden = Boolean(buyer);
+    loginStatus.textContent = "";
   } catch {
-    loginStatus.textContent = "Discord login is temporarily unavailable.";
+    downloadButton.hidden = true;
+    buyButton.hidden = false;
+    loginStatus.textContent = "Could not check Discord access. Please try again later.";
   }
 }
 

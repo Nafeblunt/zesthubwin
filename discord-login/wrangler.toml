@@ -1,0 +1,16 @@
+name = "zesthub-discord-login"
+main = "worker.mjs"
+compatibility_date = "2026-11-07"
+workers_dev = false
+
+[vars]
+DISCORD_CLIENT_ID = "1568754980708552867"
+
+[[routes]]
+pattern = "login.zesthub.win"
+custom_domain = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zesthub-licenses"
+database_id = "8cbce4a0-5a6a-45a1-90b7-a5afc59d64e7"

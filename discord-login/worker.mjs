@@ -53,7 +53,7 @@ export default {
           return redirect(`${SITE}/?login=failed`, [clear]);
         }
         stage = 'discord-identity';
-        const identity = await fetch('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${token.access_token}` }, redirect: 'error' });
+        const identity = await fetch('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${token.access_token}` }, redirect: 'manual' });
         if (!identity.ok) {
           console.log('Discord login rejected at identity lookup; HTTP status', identity.status);
           return redirect(`${SITE}/?login=failed`, [clear]);

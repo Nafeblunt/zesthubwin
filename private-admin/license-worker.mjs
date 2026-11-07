@@ -24,7 +24,7 @@ export default {
       // A single conditional update claims and binds the license atomically.
       const row = await env.LICENSE_DB.prepare(`UPDATE licenses SET
         username=COALESCE(username,?), hwid_hash=COALESCE(hwid_hash,?),
-        activated_at=COALESCE(activated_at,?), expires_at=COALESCE(expires_at,?+duration_seconds)
+        activated_at=COALESCE(activated_at,?), expires_at=COALESCE(expires_at,CASE WHEN duration_seconds=253402300799 THEN 253402300799 ELSE ?+duration_seconds END)
         WHERE key_hash=? AND revoked=0 AND (username IS NULL OR username=?)
         AND (hwid_hash IS NULL OR hwid_hash=?) AND (expires_at IS NULL OR expires_at>?)
         AND NOT EXISTS (SELECT 1 FROM banned_devices WHERE hwid_hash=?) RETURNING id`)

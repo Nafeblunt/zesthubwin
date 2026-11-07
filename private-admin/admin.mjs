@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import dashboard from './dashboard.mjs';
 
 const html = `<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Zest Hub private upload</title>
@@ -48,25 +49,31 @@ export default {
     const headers = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline' https://zesthub.win; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'" };
     if (url.pathname === '/' && request.method === 'GET')
-      return new Response(html, { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
+      return new Response(dashboard, { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
     if (url.pathname.startsWith('/api/licenses')) {
       if (!env.LICENSE_DB) return new Response('Not configured', { status: 503, headers });
       if (request.method !== 'GET' && request.headers.get('Origin') !== url.origin)
         return new Response('Forbidden', { status: 403, headers });
       try {
         if (url.pathname === '/api/licenses' && request.method === 'GET') {
-          const rows = await env.LICENSE_DB.prepare('SELECT l.id,l.username,l.created_at,l.activated_at,l.expires_at,l.revoked,CASE WHEN b.hwid_hash IS NULL THEN 0 ELSE 1 END AS device_banned FROM licenses l LEFT JOIN banned_devices b ON l.hwid_hash=b.hwid_hash ORDER BY l.created_at DESC LIMIT 200').all();
-          return Response.json({ licenses: rows.results }, { headers });
+          const offset = Number(url.searchParams.get('offset') || '0');
+          if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) return new Response('Invalid offset', { status: 400, headers });
+          const rows = await env.LICENSE_DB.prepare('SELECT l.id,l.username,l.created_at,l.activated_at,l.expires_at,l.duration_seconds,l.revoked,l.hwid_hash IS NOT NULL AS device_bound,CASE WHEN b.hwid_hash IS NULL THEN 0 ELSE 1 END AS device_banned FROM licenses l LEFT JOIN banned_devices b ON l.hwid_hash=b.hwid_hash ORDER BY l.created_at DESC,l.id DESC LIMIT 501 OFFSET ?').bind(offset).all();
+          return Response.json({ licenses: rows.results.slice(0, 500), nextOffset: rows.results.length > 500 ? offset + 500 : null }, { headers });
         }
         if (url.pathname === '/api/licenses' && request.method === 'POST') {
           const length = Number(request.headers.get('Content-Length'));
           if (!length || length > 1024) return new Response('Invalid request', { status: 400, headers });
-          const { days } = await request.json();
-          if (!Number.isInteger(days) || days < 1 || days > 3650) return new Response('Invalid duration', { status: 400, headers });
-          const key = 'ZEST-' + randomHex(24).toUpperCase();
-          await env.LICENSE_DB.prepare('INSERT INTO licenses (id,key_hash,created_at,duration_seconds) VALUES (?,?,?,?)')
-            .bind(randomHex(12), await hash(key), Math.floor(Date.now()/1000), days * 86400).run();
-          return Response.json({ key }, { status: 201, headers });
+          const { unit, quantity, count } = await request.json();
+          const seconds = { hour: 3600, day: 86400, week: 604800, month: 2592000, year: 31536000, lifetime: 253402300799 };
+          if (!Object.hasOwn(seconds, unit) || !Number.isInteger(quantity) || quantity < 1 || quantity > 100 ||
+              !Number.isInteger(count) || count < 1 || count > 100) return new Response('Invalid duration or quantity', { status: 400, headers });
+          const duration = unit === 'lifetime' ? seconds.lifetime : quantity * seconds[unit];
+          const keys = Array.from({ length: count }, () => 'ZEST-' + randomHex(24).toUpperCase());
+          const statements = await Promise.all(keys.map(async key => env.LICENSE_DB.prepare('INSERT INTO licenses (id,key_hash,created_at,duration_seconds) VALUES (?,?,?,?)')
+            .bind(randomHex(12), await hash(key), Math.floor(Date.now()/1000), duration)));
+          await env.LICENSE_DB.batch(statements);
+          return Response.json({ keys }, { status: 201, headers });
         }
         const match = /^\/api\/licenses\/([a-f0-9]{24})\/(reset|ban|unban|revoke)$/.exec(url.pathname);
         if (match && request.method === 'POST') {

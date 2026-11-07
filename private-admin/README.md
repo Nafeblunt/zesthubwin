@@ -2,9 +2,11 @@
 
 ## License dashboard
 
-The owner dashboard can create a high-entropy license key, display it once,
+The owner dashboard can create up to 100 high-entropy license keys at a time, display them once,
 and list licenses. A key becomes active on its first successful sign-in; its
-duration starts then. First use binds the license to the entered username and
+duration starts then. Hour, day, week, 30-day month, 365-day year, and lifetime
+durations are supported. Lifetime uses an expiry of 9999-12-31 and can still be
+revoked. First use binds the license to the entered username and
 device ID. The owner can reset that binding, ban or unban the bound device, or
 revoke a license. Unban a banned device before resetting it so it remains
 manageable from the dashboard. License keys are stored as SHA-256 hashes.

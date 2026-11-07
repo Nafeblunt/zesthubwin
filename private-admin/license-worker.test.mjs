@@ -35,4 +35,7 @@ test('license claim, device reset, ban, expiry and revocation gate storage', asy
   db.prepare('UPDATE licenses SET expires_at=9999999999,revoked=1 WHERE id=?').run('id');
   assert.equal(await attempt(username, 'device-two'), 401);
   assert.equal(downloads, 2);
+  db.prepare('UPDATE licenses SET revoked=0, username=NULL, hwid_hash=NULL, activated_at=NULL, expires_at=NULL, duration_seconds=253402300799 WHERE id=?').run('id');
+  assert.equal(await attempt(username, 'device-three'), 200);
+  assert.equal(db.prepare('SELECT expires_at FROM licenses WHERE id=?').get('id').expires_at, 253402300799);
 });

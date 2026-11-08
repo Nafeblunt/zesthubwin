@@ -125,8 +125,10 @@ export default {
         if (!await hasBuyerAccess(row.discord_id, env)) return json(request, { error: 'Buyer role required.' }, 403);
         const object = await env.LOADER_BUCKET.get('ZestHub-Loader.exe');
         if (!object) return json(request, { error: 'The loader has not been uploaded yet.' }, 404);
+        const downloadName = /^[A-Za-z]{6,7}\.exe$/.test(object.customMetadata?.downloadName || '')
+          ? object.customMetadata.downloadName : 'ZestHub-Loader.exe';
         return new Response(object.body, { headers: { 'Content-Type': 'application/octet-stream',
-          'Content-Disposition': 'attachment; filename="ZestHub-Loader.exe"', 'Cache-Control': 'private, no-store',
+          'Content-Disposition': `attachment; filename="${downloadName}"`, 'Cache-Control': 'private, no-store',
           'X-Content-Type-Options': 'nosniff' } });
       }
       if (url.pathname === '/me' && request.method === 'GET') {

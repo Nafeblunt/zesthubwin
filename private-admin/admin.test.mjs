@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import worker from './admin.mjs';
+import worker, { randomLoaderName } from './admin.mjs';
+
+test('loader download names contain six or seven mixed-case letters', () => {
+  for (let i = 0; i < 100; i++) {
+    const name = randomLoaderName();
+    assert.match(name, /^[A-Za-z]{6,7}\.exe$/);
+    assert.match(name.slice(0, -4), /[a-z]/);
+    assert.match(name.slice(0, -4), /[A-Z]/);
+  }
+});
 
 test('unconfigured worker and missing identity fail closed', async () => {
   let writes = 0;

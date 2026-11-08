@@ -32,6 +32,12 @@ const loginStatus = document.getElementById("login-status");
 const loginService = "https://login.zesthub.win";
 const downloadButton = document.getElementById("download-btn");
 const buyButton = document.getElementById("buy-btn");
+const accountButton = document.getElementById("account-btn");
+const accountDialog = document.getElementById("account-dialog");
+const accountName = document.getElementById("account-name");
+
+accountButton.addEventListener("click", () => accountDialog.showModal());
+document.getElementById("account-close").addEventListener("click", () => accountDialog.close());
 
 downloadButton.addEventListener("click", () => {
   window.location.assign(`${loginService}/download-loader`);
@@ -48,12 +54,17 @@ async function updateLogin() {
     const { user, buyer } = await response.json();
     discordUser.textContent = user ? `Signed in as ${user.name}` : "";
     discordUser.hidden = !user;
+    accountButton.hidden = !user;
+    accountName.textContent = user ? `Discord: ${user.name}` : "";
+    if (!user && accountDialog.open) accountDialog.close();
     logoutButton.hidden = !user;
     loginButton.hidden = Boolean(user);
     downloadButton.hidden = !buyer;
     buyButton.hidden = Boolean(buyer);
     loginStatus.textContent = "";
   } catch {
+    accountButton.hidden = true;
+    if (accountDialog.open) accountDialog.close();
     downloadButton.hidden = true;
     buyButton.hidden = false;
     loginStatus.textContent = "Could not check Discord access. Please try again later.";

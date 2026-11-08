@@ -41,7 +41,7 @@ test('loader download checks the session and Discord role before reading the pri
   const config = { ...env, DISCORD_BOT_TOKEN: 'test', DISCORD_GUILD_ID: '123456789012345678',
     DISCORD_BUYER_ROLE_ID: '123456789012345680',
     DB: { prepare: () => ({ bind: () => ({ first: async () => ({ discord_id: '111111111111111111' }) }) }) },
-    LOADER_BUCKET: { get: async key => { reads++; assert.equal(key, 'ZestHub-Loader.exe'); return { body: 'test loader' }; } } };
+    LOADER_BUCKET: { get: async key => { reads++; assert.equal(key, 'ZestHub-Loader.exe'); return { body: 'test loader', customMetadata: { downloadName: 'aBcDeF.exe' } }; } } };
   try {
     globalThis.fetch = async url => String(url).endsWith('/roles')
       ? Response.json([{ id: config.DISCORD_BUYER_ROLE_ID, position: 2 }])
@@ -55,7 +55,7 @@ test('loader download checks the session and Discord role before reading the pri
     authorized = true;
     const response = await worker.fetch(request(cookie), config);
     assert.equal(response.status, 200);
-    assert.match(response.headers.get('content-disposition'), /ZestHub-Loader\.exe/);
+    assert.match(response.headers.get('content-disposition'), /aBcDeF\.exe/);
     assert.equal(await response.text(), 'test loader');
     assert.equal(reads, 1);
   } finally { globalThis.fetch = original; }

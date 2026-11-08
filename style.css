@@ -119,8 +119,8 @@ button, .button-link {
 button:hover, .button-link:hover { 
   color: rgb(119, 0, 255); 
   text-shadow: 0 0 10px rgb(0, 0, 0),
-             0 0 20px rgba(0, 0, 0),
-             0 0 30px rgba(0, 0, 0);
+             0 0 20px rgb(0, 0, 0),
+             0 0 30px rgb(0, 0, 0);
   transform: rotate(var(--hover-tilt, 0deg));
 }
 

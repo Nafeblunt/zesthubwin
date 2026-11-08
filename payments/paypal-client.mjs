@@ -35,13 +35,13 @@ export class PayPalSandbox {
     return result.access_token;
   }
 
-  async request(path, { method = 'GET', requestId, body } = {}) {
+  async request(path, { method = 'GET', requestId, body, rawBody } = {}) {
     const token = await this.accessToken();
     const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (body !== undefined || rawBody !== undefined) headers['Content-Type'] = 'application/json';
     if (requestId) headers['PayPal-Request-Id'] = requestId;
     const response = await this.transport(`${ORIGIN}${path}`, { method, headers, redirect: 'manual',
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+      ...(rawBody !== undefined ? { body: rawBody } : body === undefined ? {} : { body: JSON.stringify(body) }) });
     if (!response.ok) {
       const error = new Error('PayPal sandbox request failed');
       error.kind = 'paypal_request'; error.status = response.status;
@@ -82,16 +82,19 @@ export class PayPalSandbox {
     return this.request(`/v2/payments/refunds/${encodeURIComponent(refundId)}`);
   }
 
-  async verifyWebhook(headers, event, webhookId) {
+  async verifyWebhook(headers, rawEvent, webhookId) {
     if (typeof webhookId !== 'string' || !/^[A-Za-z0-9-]{6,100}$/.test(webhookId)) throw new Error('Invalid webhook configuration');
     const required = ['paypal-auth-algo', 'paypal-cert-url', 'paypal-transmission-id',
       'paypal-transmission-sig', 'paypal-transmission-time'];
     const values = required.map(name => headers.get(name));
     if (values.some(value => !value || value.length > 2048)) return false;
-    const result = await this.request('/v1/notifications/verify-webhook-signature', { method: 'POST', body: {
+    if (typeof rawEvent !== 'string') throw new Error('Invalid webhook body');
+    const metadata = {
       auth_algo: values[0], cert_url: values[1], transmission_id: values[2], transmission_sig: values[3],
-      transmission_time: values[4], webhook_id: webhookId, webhook_event: event
-    } });
+      transmission_time: values[4], webhook_id: webhookId
+    };
+    const rawBody = JSON.stringify(metadata).slice(0, -1) + ',"webhook_event":' + rawEvent + '}';
+    const result = await this.request('/v1/notifications/verify-webhook-signature', { method: 'POST', rawBody });
     return result.verification_status === 'SUCCESS';
   }
 }

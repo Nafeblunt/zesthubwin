@@ -23,9 +23,10 @@ export async function receiveWebhook(request, { db, paypal, webhookId }) {
     } finally { reader.releaseLock(); }
     const bytes = new Uint8Array(size); let offset = 0;
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    const event = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    const rawEvent = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    const event = JSON.parse(rawEvent);
     if (!identifier(event?.id) || typeof event.event_type !== 'string') return new Response('Invalid event', { status: 400 });
-    if (!await paypal.verifyWebhook(request.headers, event, webhookId)) return new Response('Forbidden', { status: 403 });
+    if (!await paypal.verifyWebhook(request.headers, rawEvent, webhookId)) return new Response('Forbidden', { status: 403 });
     if (!allowed.has(event.event_type)) return new Response(null, { status: 204 });
     const resourceId = event.resource?.id;
     if (!identifier(resourceId)) return new Response('Invalid event', { status: 400 });

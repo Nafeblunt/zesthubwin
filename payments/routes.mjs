@@ -44,6 +44,12 @@ export async function handleSandboxPayment(request, discordId, { db, paypal, vau
         licenseId: row.license_id, key: await openKey(vaultSecret, row.license_id, row.key_ciphertext) })));
       return reply({ purchases });
     }
+    if (url.pathname === '/sandbox/payments/pending' && request.method === 'GET') {
+      const result = await db.prepare(`SELECT id,created_at FROM paypal_purchases
+        WHERE discord_id=? AND status='created' AND paypal_order_id IS NOT NULL ORDER BY created_at DESC LIMIT 50`)
+        .bind(discordId).all();
+      return reply({ purchases: result.results.map(row => ({ purchaseId: row.id, createdAt: row.created_at })) });
+    }
     if (url.pathname === '/sandbox/payments/create' && request.method === 'POST') {
       const purchaseId = randomId();
       const purchase = await createCheckout(db, paypal, { purchaseId, discordId });
@@ -57,8 +63,11 @@ export async function handleSandboxPayment(request, discordId, { db, paypal, vau
       return reply({ key: result.key, licenseId: result.licenseId });
     }
     return reply({ error: 'Not found.' }, 404);
-  } catch {
-    // Do not expose PayPal responses, secrets, purchase IDs, or license keys in logs.
+  } catch (error) {
+    // Only log an allowlisted category and numeric status; no response bodies or credentials.
+    const kind = ['paypal_auth', 'paypal_request'].includes(error?.kind) ? error.kind : 'internal';
+    const status = Number.isInteger(error?.status) ? error.status : 0;
+    console.error('Sandbox checkout failed:', kind, status);
     return reply({ error: 'Sandbox payment could not be completed. Please contact the owner.' }, 503);
   }
 }

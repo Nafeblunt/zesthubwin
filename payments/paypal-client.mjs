@@ -11,7 +11,7 @@ async function requestKey(prefix, purchaseId) {
 }
 
 export class PayPalSandbox {
-  constructor({ clientId, clientSecret, merchantId, transport = fetch }) {
+  constructor({ clientId, clientSecret, merchantId, transport = (...args) => fetch(...args) }) {
     if (!clientId || !clientSecret || !merchantId) throw new Error('PayPal sandbox credentials are required');
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -25,7 +25,11 @@ export class PayPalSandbox {
       method: 'POST', redirect: 'manual', headers: { Authorization: `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=client_credentials'
     });
-    if (!response.ok) throw new Error('PayPal sandbox authentication failed');
+    if (!response.ok) {
+      const error = new Error('PayPal sandbox authentication failed');
+      error.kind = 'paypal_auth'; error.status = response.status;
+      throw error;
+    }
     const result = await response.json();
     if (typeof result.access_token !== 'string' || !result.access_token) throw new Error('Invalid PayPal token response');
     return result.access_token;
@@ -40,7 +44,7 @@ export class PayPalSandbox {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     if (!response.ok) {
       const error = new Error('PayPal sandbox request failed');
-      error.status = response.status;
+      error.kind = 'paypal_request'; error.status = response.status;
       throw error;
     }
     return response.json();

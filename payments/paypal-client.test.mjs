@@ -40,3 +40,15 @@ test('capture retries use a stable PayPal idempotency key', async () => {
   assert.equal(ids[0], ids[1]);
   assert.match(ids[0], /^c-[a-f0-9]{32}$/);
 });
+
+test('default transport calls the global fetch without a custom receiver', async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async function (url) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+      return Response.json(String(url).endsWith('/token') ? { access_token: 'token' } : { id: 'ORDER123456' });
+    };
+    const client = new PayPalSandbox({ clientId: 'id', clientSecret: 'secret', merchantId: 'merchant' });
+    assert.equal((await client.createOrder('purchase123456')).id, 'ORDER123456');
+  } finally { globalThis.fetch = original; }
+});

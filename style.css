@@ -60,13 +60,15 @@ div.bar {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  border: 1px solid #444;
+  box-shadow: 0 0 5px 2px rgb(119, 0, 255);
+  border: 0px solid #444;
   box-sizing: border-box;
   width: fit-content;
   max-width: 100%;
   margin-inline: auto;
   padding: 8px;
   border-radius: 12px;
+
 }
 
 .bar.hidden {
@@ -116,6 +118,9 @@ button, .button-link {
 
 button:hover, .button-link:hover { 
   color: rgb(119, 0, 255); 
+  text-shadow: 0 0 10px rgb(0, 0, 0),
+             0 0 20px rgba(0, 0, 0),
+             0 0 30px rgba(0, 0, 0);
   transform: rotate(var(--hover-tilt, 0deg));
 }
 

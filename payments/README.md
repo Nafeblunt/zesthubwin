@@ -15,14 +15,14 @@ completed capture. Never feed it a browser-provided order as proof of payment.
 idempotent license creation for a purchase tied to a verified Discord identity.
 `routes.mjs` is wired to the Discord login Worker with a separate sandbox database;
 test licenses cannot unlock the live loader. `sandbox.html` and `sandbox.js` are
-the test page. One sandbox purchase was reported successful; this is not a full
-end-to-end audit of the failure and recovery paths.
+the test page. A sandbox full-refund webhook was delivered and its matching
+license was confirmed revoked. This is not a full audit of failure and recovery.
 
-`webhook.mjs`, `webhook-processor.mjs`, and `buyer-role.mjs` are local-only
-components. They have not been connected to a public webhook, scheduler, or
-production checkout. Verified events are recorded without payer details, and
-completed-capture processing rechecks the order directly with PayPal. Refunds,
-reversals and Discord-role retry/removal are not yet implemented end-to-end.
+`webhook.mjs` and `webhook-processor.mjs` are connected to the sandbox webhook
+and scheduled worker; they are not connected to live checkout. Verified events
+are recorded without payer details, and completed-capture processing rechecks
+the order directly with PayPal. `buyer-role.mjs` is not wired into checkout.
+Reversals and Discord-role retry/removal are not yet tested end-to-end.
 
 Still required before accepting payments:
 

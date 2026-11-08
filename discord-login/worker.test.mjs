@@ -35,6 +35,31 @@ test('an anonymous session is returned as signed out', async () => {
   assert.deepEqual(await r.json(), { user: null, buyer: false });
   assert.equal(r.headers.get('access-control-allow-origin'), 'https://zesthub.win');
 });
+test('loader download checks the session and Discord role before reading the private object', async () => {
+  const original = globalThis.fetch;
+  let reads = 0, authorized = false;
+  const config = { ...env, DISCORD_BOT_TOKEN: 'test', DISCORD_GUILD_ID: '123456789012345678',
+    DISCORD_BUYER_ROLE_ID: '123456789012345680',
+    DB: { prepare: () => ({ bind: () => ({ first: async () => ({ discord_id: '111111111111111111' }) }) }) },
+    LOADER_BUCKET: { get: async key => { reads++; assert.equal(key, 'ZestHub-Loader.exe'); return { body: 'test loader' }; } } };
+  try {
+    globalThis.fetch = async url => String(url).endsWith('/roles')
+      ? Response.json([{ id: config.DISCORD_BUYER_ROLE_ID, position: 2 }])
+      : String(url).includes('/members/') ? Response.json({ roles: authorized ? [config.DISCORD_BUYER_ROLE_ID] : [] })
+      : Response.json({ owner_id: '999999999999999999' });
+    const request = cookie => new Request('https://login.zesthub.win/download-loader', { headers: cookie ? { Cookie: cookie } : {} });
+    assert.equal((await worker.fetch(request(), config)).status, 401);
+    const cookie = '__Host-zest_session=' + 'a'.repeat(64);
+    assert.equal((await worker.fetch(request(cookie), config)).status, 403);
+    assert.equal(reads, 0);
+    authorized = true;
+    const response = await worker.fetch(request(cookie), config);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-disposition'), /ZestHub-Loader\.exe/);
+    assert.equal(await response.text(), 'test loader');
+    assert.equal(reads, 1);
+  } finally { globalThis.fetch = original; }
+});
 test('sandbox checkout stays disabled unless explicitly configured', async () => {
   const request = new Request('https://login.zesthub.win/sandbox/payments/config', { headers: { Origin: 'https://zesthub.win' } });
   const r = await worker.fetch(request, env);

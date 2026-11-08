@@ -115,6 +115,20 @@ export default {
           .bind(await sha(session), user.id, user.global_name || user.username, now + TIMEOUT).run();
         return redirect(SITE + '/', [clear, cookie(SESSION, session, TIMEOUT)]);
       }
+      if (url.pathname === '/download-loader' && request.method === 'GET') {
+        if (!env.LOADER_BUCKET) return json(request, { error: 'Download is not configured.' }, 503);
+        const token = cookies(request)[SESSION];
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        const row = await env.DB.prepare('SELECT discord_id FROM website_sessions WHERE session_hash=? AND expires_at>?')
+          .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
+        if (!row) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!await hasBuyerAccess(row.discord_id, env)) return json(request, { error: 'Buyer role required.' }, 403);
+        const object = await env.LOADER_BUCKET.get('ZestHub-Loader.exe');
+        if (!object) return json(request, { error: 'The loader has not been uploaded yet.' }, 404);
+        return new Response(object.body, { headers: { 'Content-Type': 'application/octet-stream',
+          'Content-Disposition': 'attachment; filename="ZestHub-Loader.exe"', 'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff' } });
+      }
       if (url.pathname === '/me' && request.method === 'GET') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
         const token = cookies(request)[SESSION];

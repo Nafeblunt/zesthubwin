@@ -24,6 +24,10 @@ binding = "DB"
 database_name = "zesthub-licenses"
 database_id = "8cbce4a0-5a6a-45a1-90b7-a5afc59d64e7"
 
+[[r2_buckets]]
+binding = "LOADER_BUCKET"
+bucket_name = "zesthub-private"
+
 [[d1_databases]]
 binding = "SANDBOX_DB"
 database_name = "zesthub-payments-sandbox"

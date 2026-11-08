@@ -116,13 +116,13 @@ export default {
       } catch { return new Response('Database error', { status: 503, headers }); }
       return new Response('Not found', { status: 404, headers });
     }
-    if (url.pathname === '/upload' && request.method === 'PUT') {
+    if ((url.pathname === '/upload' || url.pathname === '/upload-loader') && request.method === 'PUT') {
       if (request.headers.get('Origin') !== url.origin) return new Response('Forbidden', { status: 403, headers });
       const length = Number(request.headers.get('Content-Length'));
       if (!Number.isSafeInteger(length) || length < 64 || length > 64 * 1024 * 1024 || !request.body)
         return new Response('Invalid file size', { status: 400, headers });
       try {
-        await env.DLL_BUCKET.put('ZestHub.dll', request.body, { httpMetadata: { contentType: 'application/octet-stream' } });
+        await env.DLL_BUCKET.put(url.pathname === '/upload-loader' ? 'ZestHub-Loader.exe' : 'ZestHub.dll', request.body, { httpMetadata: { contentType: 'application/octet-stream' } });
         return new Response('Uploaded', { headers });
       } catch { return new Response('Upload failed', { status: 503, headers }); }
     }

@@ -33,6 +33,10 @@ const loginService = "https://login.zesthub.win";
 const downloadButton = document.getElementById("download-btn");
 const buyButton = document.getElementById("buy-btn");
 
+downloadButton.addEventListener("click", () => {
+  window.location.assign(`${loginService}/download-loader`);
+});
+
 loginButton.addEventListener("click", () => {
   window.location.assign(`${loginService}/start`);
 });

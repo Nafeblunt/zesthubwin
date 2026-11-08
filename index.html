@@ -6,15 +6,14 @@
   <title>Zest Hub</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
-  <main>
-  </main>
+</head>
 <body>
   <main class="loader" id="loader">
     <p id="typewriter"></p>
   </main>
   <div class="bar hidden" id="bar">
-    <button id="Forum" type="button" >Forum</button>
-    <button id="Market" type="button" >Market</button>
+    <a class="button-link" href="/Forum">Forum</a>
+    <a class="button-link" href="/Market">Market</a>
   </div>
   <main class="hero hidden" id="hero">
     <h1>Zest Hub</h1>
@@ -32,7 +31,7 @@
     <p id="login-status" role="status"></p>
   </section>
   <dialog id="account-dialog" class="account-dialog" aria-labelledby="account-title">
-    <div class="account-heading"><h2 id="account-title">Your account</h2><button id="account-close" type="button" aria-label="Close account"></button></div>
+    <div class="account-heading"><h2 id="account-title">Your account</h2><button id="account-close" type="button" aria-label="Close account">×</button></div>
     <p id="account-name"></p>
   </dialog>
 </body>

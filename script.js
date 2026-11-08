@@ -5,6 +5,8 @@ const HOLD_TIME = 1200;
 const loader = document.getElementById("loader");
 const hero = document.getElementById("hero");
 const login = document.getElementById("login");
+const bar = document.getElementById("bar");
+
 const typewriter = document.getElementById("typewriter");
 
 function typeLetter(i) {
@@ -18,6 +20,7 @@ function typeLetter(i) {
         loader.style.display = "none";
         hero.classList.remove("hidden");
         login.classList.remove("hidden");
+        bar.classList.remove("hidden");
       }, 600);
     }, HOLD_TIME);
   }

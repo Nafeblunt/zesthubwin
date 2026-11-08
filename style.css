@@ -55,6 +55,23 @@
 .account-card h3 { margin-top: 0; }
 .account-card p { margin-bottom: 0; color: #ccc; line-height: 1.5; }
 
+div.bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #444;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+.bar.hidden {
+  display: none;
+}
 .login-form {
   display: flex;
   flex-direction: column;
@@ -105,6 +122,11 @@ button:hover, .button-link:hover {
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+@keyframes Scale {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

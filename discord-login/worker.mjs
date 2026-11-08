@@ -1,6 +1,8 @@
 const SITE = 'https://zesthub.win';
 import { handleSandboxPayment } from '../payments/routes.mjs';
 import { PayPalSandbox } from '../payments/paypal-client.mjs';
+import { receiveWebhook } from '../payments/webhook.mjs';
+import { processCompletedEvent, processReversalEvent } from '../payments/webhook-processor.mjs';
 const REDIRECT = 'https://login.zesthub.win/callback';
 const SESSION = '__Host-zest_session';
 const STATE = '__Host-zest_oauth_state';
@@ -46,6 +48,14 @@ export default {
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
     let stage = 'request';
     try {
+      if (url.pathname === '/sandbox/payments/webhook') {
+        if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_WEBHOOK_ID ||
+            !env.PAYPAL_SANDBOX_CLIENT_ID || !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID)
+          return json(request, { error: 'Sandbox webhook is not configured.' }, 503);
+        const paypal = new PayPalSandbox({ clientId: env.PAYPAL_SANDBOX_CLIENT_ID,
+          clientSecret: env.PAYPAL_SANDBOX_CLIENT_SECRET, merchantId: env.PAYPAL_SANDBOX_MERCHANT_ID });
+        return receiveWebhook(request, { db: env.SANDBOX_DB, paypal, webhookId: env.PAYPAL_SANDBOX_WEBHOOK_ID });
+      }
       if (url.pathname.startsWith('/sandbox/payments/')) {
         if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_CLIENT_ID ||
             !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID || !env.SANDBOX_VAULT_SECRET || !env.SANDBOX_LIMIT)
@@ -126,6 +136,29 @@ export default {
       console.error('Discord login failed at', stage, 'error type:', error?.name || 'Error');
       if (url.pathname === '/callback') return redirect(`${SITE}/?login=failed`, [cookie(STATE, '', 0)]);
       return json(request, { error: 'Login temporarily unavailable.' }, 503);
+    }
+  },
+  async scheduled(_event, env) {
+    if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_WEBHOOK_ID ||
+        !env.PAYPAL_SANDBOX_CLIENT_ID || !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID || !env.SANDBOX_VAULT_SECRET) return;
+    const paypal = new PayPalSandbox({ clientId: env.PAYPAL_SANDBOX_CLIENT_ID,
+      clientSecret: env.PAYPAL_SANDBOX_CLIENT_SECRET, merchantId: env.PAYPAL_SANDBOX_MERCHANT_ID });
+    const now = Math.floor(Date.now() / 1000);
+    const result = await env.SANDBOX_DB.prepare(`SELECT event_id,event_type,attempts FROM paypal_webhook_events
+      WHERE processed_at IS NULL AND next_attempt_at<=?
+      ORDER BY next_attempt_at,received_at LIMIT 20`).bind(now).all();
+    for (const event of result.results) {
+      try {
+        if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED')
+          await processCompletedEvent(env.SANDBOX_DB, paypal, env.SANDBOX_VAULT_SECRET, env.PAYPAL_SANDBOX_MERCHANT_ID, event.event_id);
+        else await processReversalEvent(env.SANDBOX_DB, paypal, event.event_id);
+      }
+      catch {
+        const delay = Math.min(86400, 300 * 2 ** Math.min(event.attempts, 9));
+        await env.SANDBOX_DB.prepare(`UPDATE paypal_webhook_events SET attempts=attempts+1,next_attempt_at=?
+          WHERE event_id=? AND processed_at IS NULL`).bind(now + delay, event.event_id).run();
+        console.error('Sandbox webhook requires reconciliation');
+      }
     }
   }
 };

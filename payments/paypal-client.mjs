@@ -71,4 +71,27 @@ export class PayPalSandbox {
     if (!safeId(orderId)) throw new Error('Invalid order ID');
     return this.request(`/v2/checkout/orders/${encodeURIComponent(orderId)}`);
   }
+
+  async getCapture(captureId) {
+    if (!safeId(captureId)) throw new Error('Invalid capture ID');
+    return this.request(`/v2/payments/captures/${encodeURIComponent(captureId)}`);
+  }
+
+  async getRefund(refundId) {
+    if (!safeId(refundId)) throw new Error('Invalid refund ID');
+    return this.request(`/v2/payments/refunds/${encodeURIComponent(refundId)}`);
+  }
+
+  async verifyWebhook(headers, event, webhookId) {
+    if (typeof webhookId !== 'string' || !/^[A-Za-z0-9-]{6,100}$/.test(webhookId)) throw new Error('Invalid webhook configuration');
+    const required = ['paypal-auth-algo', 'paypal-cert-url', 'paypal-transmission-id',
+      'paypal-transmission-sig', 'paypal-transmission-time'];
+    const values = required.map(name => headers.get(name));
+    if (values.some(value => !value || value.length > 2048)) return false;
+    const result = await this.request('/v1/notifications/verify-webhook-signature', { method: 'POST', body: {
+      auth_algo: values[0], cert_url: values[1], transmission_id: values[2], transmission_sig: values[3],
+      transmission_time: values[4], webhook_id: webhookId, webhook_event: event
+    } });
+    return result.verification_status === 'SUCCESS';
+  }
 }

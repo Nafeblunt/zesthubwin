@@ -34,4 +34,11 @@ test('a verified purchase creates exactly one recoverable key for its owner', as
   assert.equal(sql.prepare('SELECT COUNT(*) AS total FROM licenses').get().total, 1);
   const changed = structuredClone(order); changed.purchase_units[0].payments.captures[0].id = 'DIFFERENT123';
   await assert.rejects(fulfillVerifiedPurchase(db, secret, { ...input, order: changed }));
+  const secondId = 'bb'.repeat(12);
+  sql.prepare('INSERT INTO paypal_purchases (id,discord_id,paypal_order_id,status,created_at) VALUES (?,?,?,?,?)')
+    .run(secondId, discordId, 'ORDER99999', 'created', 1);
+  const replay = structuredClone(order); replay.id = 'ORDER99999'; replay.purchase_units[0].custom_id = secondId;
+  await assert.rejects(fulfillVerifiedPurchase(db, secret, { ...input, purchaseId: secondId, order: replay }));
+  assert.equal(sql.prepare('SELECT COUNT(*) AS total FROM licenses').get().total, 1);
+  assert.equal(sql.prepare('SELECT status FROM paypal_purchases WHERE id=?').get(secondId).status, 'created');
 });

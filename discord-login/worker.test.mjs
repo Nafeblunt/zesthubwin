@@ -40,6 +40,12 @@ test('sandbox checkout stays disabled unless explicitly configured', async () =>
   const r = await worker.fetch(request, env);
   assert.equal(r.status, 503);
 });
+test('sandbox webhooks and scheduler fail closed when missing configuration', async () => {
+  const request = new Request('https://login.zesthub.win/sandbox/payments/webhook', { method: 'POST', body: '{}' });
+  const r = await worker.fetch(request, env);
+  assert.equal(r.status, 503);
+  await worker.scheduled({}, env);
+});
 test('role check allows Buyer and higher roles, denies lower and non-members', async () => {
   const original = globalThis.fetch;
   const config = { DISCORD_BOT_TOKEN: 'test', DISCORD_GUILD_ID: '123456789012345678', DISCORD_BUYER_ROLE_ID: '123456789012345680' };

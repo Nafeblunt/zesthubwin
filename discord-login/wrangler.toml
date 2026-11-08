@@ -3,6 +3,9 @@ main = "worker.mjs"
 compatibility_date = "2026-11-07"
 workers_dev = false
 
+[triggers]
+crons = ["*/5 * * * *"]
+
 [vars]
 DISCORD_CLIENT_ID = "1568754980708552867"
 DISCORD_GUILD_ID = "1568752937986162728"

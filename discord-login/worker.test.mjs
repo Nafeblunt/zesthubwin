@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { hasBuyerAccess } from './worker.mjs';
+import worker, { getDiscordAccess, hasBuyerAccess } from './worker.mjs';
 
 const db = { prepare: () => ({ bind: () => ({ first: async () => null, run: async () => ({ success: true }) }) }) };
 const env = { DB: db, DISCORD_CLIENT_ID: '123', DISCORD_CLIENT_SECRET: 'test' };
@@ -110,6 +110,24 @@ test('role check allows Buyer and higher roles, denies lower and non-members', a
     assert.equal(await hasBuyerAccess('999999999999999999', config), true);
     memberRoles = null;
     assert.equal(await hasBuyerAccess('111111111111111111', config), false);
+  } finally { globalThis.fetch = original; }
+});
+test('Discord access displays the highest assigned role while keeping buyer checks', async () => {
+  const original = globalThis.fetch;
+  const config = { DISCORD_BOT_TOKEN: 'test', DISCORD_GUILD_ID: '123456789012345678', DISCORD_BUYER_ROLE_ID: '123456789012345680' };
+  let memberRoles = ['123456789012345679', '123456789012345681'];
+  try {
+    globalThis.fetch = async url => String(url).endsWith('/roles') ? Response.json([
+      { id: '123456789012345679', name: 'Member', position: 1 },
+      { id: config.DISCORD_BUYER_ROLE_ID, name: 'Buyer', position: 2 },
+      { id: '123456789012345681', name: 'Mod', position: 3 }
+    ]) : String(url).includes('/members/') ? Response.json({ roles: memberRoles })
+      : Response.json({ owner_id: '999999999999999999' });
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Mod', buyer: true });
+    memberRoles = ['123456789012345679'];
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false });
+    memberRoles = [];
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false });
   } finally { globalThis.fetch = original; }
 });
 test('successful Discord callback creates a session without storing Discord tokens', async () => {

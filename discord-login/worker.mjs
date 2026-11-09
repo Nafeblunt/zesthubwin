@@ -23,7 +23,7 @@ function json(request, value, status = 200, values = []) {
   return new Response(JSON.stringify(value), { status, headers });
 }
 
-export async function hasBuyerAccess(discordId, env) {
+export async function getDiscordAccess(discordId, env) {
   if (!env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_GUILD_ID || '') ||
       !/^\d{15,22}$/.test(env.DISCORD_BUYER_ROLE_ID || '')) throw new Error('Role check is not configured');
   const base = `https://discord.com/api/v10/guilds/${env.DISCORD_GUILD_ID}`;
@@ -31,16 +31,21 @@ export async function hasBuyerAccess(discordId, env) {
   const [member, roles, guild] = await Promise.all([
     fetch(`${base}/members/${discordId}`, options), fetch(`${base}/roles`, options), fetch(base, options)
   ]);
-  if (member.status === 404) return false;
+  if (member.status === 404) return { buyer: false, role: 'Not in server' };
   if (!member.ok || !roles.ok || !guild.ok) throw new Error('Discord role lookup failed');
   const [memberData, roleData, guildData] = await Promise.all([member.json(), roles.json(), guild.json()]);
-  if (guildData.owner_id === discordId) return true;
   if (!Array.isArray(roleData) || !Array.isArray(memberData.roles)) throw new Error('Invalid Discord role data');
   const buyer = roleData.find(role => role.id === env.DISCORD_BUYER_ROLE_ID);
   if (!buyer || !Number.isInteger(buyer.position) || !/^\d+$/.test(buyer.id)) throw new Error('Buyer role not found');
-  return roleData.some(role => memberData.roles.includes(role.id) && Number.isInteger(role.position) && /^\d+$/.test(role.id) &&
-    (role.position > buyer.position || (role.position === buyer.position && BigInt(role.id) <= BigInt(buyer.id))));
+  const assigned = roleData.filter(role => memberData.roles.includes(role.id) && Number.isInteger(role.position) && /^\d+$/.test(role.id));
+  assigned.sort((a, b) => b.position - a.position || (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0));
+  const highest = assigned[0];
+  const role = typeof highest?.name === 'string' && highest.name.trim() ? highest.name.trim().slice(0, 100) : 'Member';
+  return { role, buyer: guildData.owner_id === discordId || assigned.some(role =>
+    role.position > buyer.position || (role.position === buyer.position && BigInt(role.id) <= BigInt(buyer.id))) };
 }
+
+export async function hasBuyerAccess(discordId, env) { return (await getDiscordAccess(discordId, env)).buyer; }
 
 export default {
   async fetch(request, env) {
@@ -138,8 +143,8 @@ export default {
         const row = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
         if (!row) return json(request, { user: null, buyer: false });
-        const buyer = await hasBuyerAccess(row.discord_id, env);
-        return json(request, { user: { id: row.discord_id, name: row.username }, buyer });
+        const access = await getDiscordAccess(row.discord_id, env);
+        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role }, buyer: access.buyer });
       }
       if (url.pathname === '/logout' && request.method === 'POST') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);

@@ -55,7 +55,7 @@ async function updateLogin() {
     const response = await fetch(`${loginService}/me`, { credentials: "include" });
     if (!response.ok) throw new Error("Login unavailable");
     const { user, buyer } = await response.json();
-    discordUser.textContent = user ? `${user.name} | ${user.role || "Member"}` : "";
+    accountName.textContent = user ? `${"User", user.name} | ${"Role", user.role || "Member"}` : "";
     discordUser.hidden = !user;
     accountButton.hidden = !user;
     accountName.textContent = user ? `${"User", user.name} | ${"Role", user.role || "Member"}` : "";

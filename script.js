@@ -58,7 +58,7 @@ async function updateLogin() {
     discordUser.textContent = user ? `${user.name} | ${user.role || "Member"}` : "";
     discordUser.hidden = !user;
     accountButton.hidden = !user;
-    accountName.textContent = user ? `${user.name} | ${user.role || "Member"}` : "";
+    accountName.textContent = user ? `${"User", user.name} | ${"Role", user.role || "Member"}` : "";
     if (!user && accountDialog.open) accountDialog.close();
     logoutButton.hidden = !user;
     loginButton.hidden = Boolean(user);

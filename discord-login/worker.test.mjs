@@ -60,6 +60,24 @@ test('loader download checks the session and Discord role before reading the pri
     assert.equal(reads, 1);
   } finally { globalThis.fetch = original; }
 });
+test('expired sessions and Discord failures cannot download the loader', async () => {
+  const original = globalThis.fetch;
+  let reads = 0, session = null;
+  const config = { ...env, DISCORD_BOT_TOKEN: 'test', DISCORD_GUILD_ID: '123456789012345678',
+    DISCORD_BUYER_ROLE_ID: '123456789012345680',
+    DB: { prepare: () => ({ bind: () => ({ first: async () => session }) }) },
+    LOADER_BUCKET: { get: async () => { reads++; return { body: 'private' }; } } };
+  const request = () => new Request('https://login.zesthub.win/download-loader', { headers: {
+    Cookie: '__Host-zest_session=' + 'a'.repeat(64), 'X-Buyer': 'true'
+  } });
+  try {
+    assert.equal((await worker.fetch(request(), config)).status, 401);
+    session = { discord_id: '111111111111111111' };
+    globalThis.fetch = async () => new Response(null, { status: 503 });
+    assert.equal((await worker.fetch(request(), config)).status, 503);
+    assert.equal(reads, 0);
+  } finally { globalThis.fetch = original; }
+});
 test('sandbox checkout stays disabled unless explicitly configured', async () => {
   const request = new Request('https://login.zesthub.win/sandbox/payments/config', { headers: { Origin: 'https://zesthub.win' } });
   const r = await worker.fetch(request, env);

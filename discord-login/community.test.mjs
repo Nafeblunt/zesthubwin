@@ -63,3 +63,34 @@ test('the session reports market posting access only for the exact owner role', 
     assert.equal(data.marketOwner, true);
   } finally { globalThis.fetch = original; }
 });
+test('authors and the Zest Owner can remove posts; other users cannot', async () => {
+  const { env, sql } = await setup(), original = globalThis.fetch;
+  const id = 'a'.repeat(24);
+  sql.prepare('INSERT INTO community_posts VALUES (?,?,?,?,?,?,?)').run(id, 'forum', 'Title', 'Body', '222222222222222222', 'Other user', 1);
+  try {
+    globalThis.fetch = async () => Response.json({ roles: [] });
+    assert.equal((await worker.fetch(request('/community/forum/' + id, { signedIn: true, method: 'DELETE' }), env)).status, 403);
+    globalThis.fetch = async () => Response.json({ roles: [ownerRole] });
+    assert.equal((await worker.fetch(request('/community/forum/' + id, { signedIn: true, method: 'DELETE' }), env)).status, 200);
+    assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM community_posts').get().n, 0);
+    sql.prepare('INSERT INTO community_posts VALUES (?,?,?,?,?,?,?)').run(id, 'forum', 'Title', 'Body', '111111111111111111', 'Test user', 2);
+    globalThis.fetch = async () => { throw new Error('Author deletion should not depend on Discord'); };
+    assert.equal((await worker.fetch(request('/community/forum/' + id, { signedIn: true, method: 'DELETE' }), env)).status, 200);
+  } finally { globalThis.fetch = original; }
+});
+test('market posting fails closed when Discord role lookup fails', async () => {
+  const { env, sql } = await setup(), original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(null, { status: 503 });
+    const response = await worker.fetch(request('/community/market', { signedIn: true, method: 'POST', body: { title: 'Config', body: 'Details' } }), env);
+    assert.equal(response.status, 503);
+    assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM community_posts').get().n, 0);
+  } finally { globalThis.fetch = original; }
+});
+test('forum rejects empty and oversized posts', async () => {
+  const { env, sql } = await setup();
+  for (const body of [{ title: ' ', body: 'Hi' }, { title: 'x', body: 'x'.repeat(4001) }, { title: 'x', body: 'x'.repeat(9000) }]) {
+    assert.equal((await worker.fetch(request('/community/forum', { signedIn: true, method: 'POST', body }), env)).status, 400);
+  }
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM community_posts').get().n, 0);
+});

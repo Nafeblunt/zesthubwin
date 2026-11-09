@@ -18,6 +18,12 @@ test('login begins with random state in an HttpOnly cookie', async () => {
   assert.match(r.headers.get('set-cookie'), /HttpOnly/);
   assert.match(r.headers.get('set-cookie'), /SameSite=Lax/);
 });
+test('login only remembers allowed community return paths', async () => {
+  const forum = await worker.fetch(new Request('https://login.zesthub.win/start?next=%2FForum'), env);
+  assert.match(forum.headers.get('set-cookie'), /__Host-zest_return=forum/);
+  const external = await worker.fetch(new Request('https://login.zesthub.win/start?next=https%3A%2F%2Fevil.example'), env);
+  assert.doesNotMatch(external.headers.get('set-cookie'), /__Host-zest_return=forum|__Host-zest_return=market/);
+});
 test('callback rejects missing or mismatched state', async () => {
   const r = await worker.fetch(new Request('https://login.zesthub.win/callback?state=bad&code=fake'), env);
   assert.equal(r.status, 302);
@@ -147,5 +153,20 @@ test('successful Discord callback creates a session without storing Discord toke
     assert.match(r.headers.get('set-cookie'), /__Host-zest_session=[a-f0-9]{64}/);
     assert.equal(writes.length, 1);
     assert.equal(JSON.stringify(writes).includes('private-test-token'), false);
+  } finally { globalThis.fetch = original; }
+});
+test('successful login returns community visitors to the requested page', async () => {
+  const original = globalThis.fetch;
+  const fakeDB = { prepare: () => ({ bind: () => ({ run: async () => ({ success: true }) }) }) };
+  try {
+    globalThis.fetch = async url => String(url).includes('/oauth2/token')
+      ? Response.json({ access_token: 'test-token', token_type: 'bearer' })
+      : Response.json({ id: '123456789012345678', username: 'test-user' });
+    const state = 'a'.repeat(64);
+    const r = await worker.fetch(new Request(`https://login.zesthub.win/callback?state=${state}&code=test`, {
+      headers: { Cookie: `__Host-zest_oauth_state=${state}; __Host-zest_return=market` }
+    }), { ...env, DB: fakeDB });
+    assert.equal(r.headers.get('location'), 'https://zesthub.win/Market');
+    assert.match(r.headers.get('set-cookie'), /__Host-zest_return=;.*Max-Age=0/);
   } finally { globalThis.fetch = original; }
 });

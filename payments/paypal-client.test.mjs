@@ -2,6 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PayPalSandbox } from './paypal-client.mjs';
 
+test('live client targets PayPal production with the fixed lifetime price', async () => {
+  const module = await import('./paypal-client.mjs');
+  assert.equal(typeof module.PayPalLive, 'function');
+  const calls = [];
+  const client = new module.PayPalLive({ clientId: 'live-id', clientSecret: 'live-secret', merchantId: 'merchant',
+    transport: async (url, options) => { calls.push({ url, options }); return Response.json(url.endsWith('/token') ? { access_token: 'token' } : { id: 'ORDER12345' }); } });
+  await client.createOrder('purchase123456');
+  assert.ok(calls.every(call => call.url.startsWith('https://api-m.paypal.com/')));
+  assert.deepEqual(JSON.parse(calls[1].options.body).purchase_units[0].amount, { currency_code: 'USD', value: '15.00' });
+});
+
 test('creates a fixed-price sandbox order with server-owned identifiers', async () => {
   const calls = [];
   const transport = async (url, options) => {

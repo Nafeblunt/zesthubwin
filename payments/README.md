@@ -6,8 +6,10 @@ isolated database; live checkout and the main Buy button are not enabled.
 The provided PayPal hosted-button snippet alone does not establish a verified
 mapping between a PayPal payment and the website's Discord account.
 
-`paypal-client.mjs` prepares server-side Orders API calls against PayPal's
-sandbox only. `verification.mjs` is an isolated validation component, not a payment endpoint.
+`paypal-client.mjs` provides separate server-side sandbox and live PayPal
+transports. Only the sandbox is connected to a public route; the live transport
+must remain disconnected until the remaining production requirements are met.
+`verification.mjs` is an isolated validation component, not a payment endpoint.
 It accepts only an order fetched by the server from PayPal's authenticated API,
 and checks the order ID, merchant, purchase reference, amount, currency and
 completed capture. Never feed it a browser-provided order as proof of payment.

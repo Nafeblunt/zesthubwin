@@ -6,6 +6,7 @@ import { processCompletedEvent, processReversalEvent } from '../payments/webhook
 const REDIRECT = 'https://login.zesthub.win/callback';
 const SESSION = '__Host-zest_session';
 const STATE = '__Host-zest_oauth_state';
+const RETURN = '__Host-zest_return';
 const TIMEOUT = 7 * 86400;
 const random = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2, '0')).join('');
 const sha = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), n => n.toString(16).padStart(2, '0')).join('');
@@ -41,6 +42,17 @@ async function readCommunityBody(request) {
   } finally { reader.releaseLock(); }
 }
 
+async function hasMarketOwnerRole(discordId, env) {
+  if (!env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_GUILD_ID || '') || !/^\d{15,22}$/.test(env.DISCORD_OWNER_ROLE_ID || ''))
+    throw new Error('Market role not configured');
+  const member = await fetch(`https://discord.com/api/v10/guilds/${env.DISCORD_GUILD_ID}/members/${discordId}`,
+    { headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` }, redirect: 'manual' });
+  if (member.status === 404) return false;
+  if (!member.ok) throw new Error('Role lookup failed');
+  const data = await member.json();
+  return Array.isArray(data.roles) && data.roles.includes(env.DISCORD_OWNER_ROLE_ID);
+}
+
 export async function getDiscordAccess(discordId, env) {
   if (!env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_GUILD_ID || '') ||
       !/^\d{15,22}$/.test(env.DISCORD_BUYER_ROLE_ID || '')) throw new Error('Role check is not configured');
@@ -72,18 +84,19 @@ export default {
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
     let stage = 'request';
     try {
-      if (url.pathname === '/community/forum' || url.pathname === '/community/market') {
+      const community = /^\/community\/(forum|market)(?:\/([a-f0-9]{24}))?$/.exec(url.pathname);
+      if (community) {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
         if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: {
           'Access-Control-Allow-Origin': SITE, 'Access-Control-Allow-Credentials': 'true',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
+          'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
         } });
-        const kind = url.pathname.endsWith('/forum') ? 'forum' : 'market';
-        if (request.method === 'GET') {
-          const result = await env.DB.prepare('SELECT id,title,body,author_name,created_at FROM community_posts WHERE kind=? ORDER BY created_at DESC,id DESC LIMIT 100').bind(kind).all();
+        const [, kind, postId] = community;
+        if (request.method === 'GET' && !postId) {
+          const result = await env.DB.prepare('SELECT id,title,body,author_id,author_name,created_at FROM community_posts WHERE kind=? ORDER BY created_at DESC,id DESC LIMIT 100').bind(kind).all();
           return json(request, { posts: result.results });
         }
-        if (request.method !== 'POST') return json(request, { error: 'Method not allowed' }, 405);
+        if (!((request.method === 'POST' && !postId) || (request.method === 'DELETE' && postId))) return json(request, { error: 'Method not allowed' }, 405);
         const token = cookies(request)[SESSION];
         if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
         const session = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
@@ -91,15 +104,16 @@ export default {
         if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
         if (!env.COMMUNITY_LIMIT || !(await env.COMMUNITY_LIMIT.limit({ key: session.discord_id })).success)
           return json(request, { error: 'Please try again later.' }, 429);
+        if (request.method === 'DELETE') {
+          const post = await env.DB.prepare('SELECT author_id FROM community_posts WHERE id=? AND kind=?').bind(postId, kind).first();
+          if (!post) return json(request, { error: 'Post not found.' }, 404);
+          if (post.author_id !== session.discord_id && !await hasMarketOwnerRole(session.discord_id, env))
+            return json(request, { error: 'Not allowed.' }, 403);
+          await env.DB.prepare('DELETE FROM community_posts WHERE id=? AND kind=?').bind(postId, kind).run();
+          return json(request, { ok: true });
+        }
         if (kind === 'market') {
-          if (!env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_GUILD_ID || '') || !/^\d{15,22}$/.test(env.DISCORD_OWNER_ROLE_ID || ''))
-            return json(request, { error: 'Market posting is unavailable.' }, 503);
-          const member = await fetch(`https://discord.com/api/v10/guilds/${env.DISCORD_GUILD_ID}/members/${session.discord_id}`,
-            { headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` }, redirect: 'manual' });
-          if (member.status === 404) return json(request, { error: 'Zest Owner role required.' }, 403);
-          if (!member.ok) return json(request, { error: 'Could not verify your role.' }, 503);
-          const memberData = await member.json();
-          if (!Array.isArray(memberData.roles) || !memberData.roles.includes(env.DISCORD_OWNER_ROLE_ID))
+          if (!await hasMarketOwnerRole(session.discord_id, env))
             return json(request, { error: 'Zest Owner role required.' }, 403);
         }
         let data;
@@ -137,12 +151,15 @@ export default {
       }
       if (url.pathname === '/start' && request.method === 'GET') {
         const state = random();
+        const next = url.searchParams.get('next');
+        const returnPage = next === '/Forum' ? 'forum' : next === '/Market' ? 'market' : '';
         const authorization = new URL('https://discord.com/oauth2/authorize');
         authorization.search = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, redirect_uri: REDIRECT, response_type: 'code', scope: 'identify', state });
-        return redirect(authorization.toString(), [cookie(STATE, state, 600)]);
+        return redirect(authorization.toString(), [cookie(STATE, state, 600), cookie(RETURN, returnPage, returnPage ? 600 : 0)]);
       }
       if (url.pathname === '/callback' && request.method === 'GET') {
-        const state = url.searchParams.get('state'), expected = cookies(request)[STATE];
+        const requestCookies = cookies(request);
+        const state = url.searchParams.get('state'), expected = requestCookies[STATE];
         const clear = cookie(STATE, '', 0);
         if (!state || !expected || !/^[a-f0-9]{64}$/.test(state) || state !== expected || !url.searchParams.get('code')) {
           console.log('Discord login rejected: invalid state or code');
@@ -177,7 +194,8 @@ export default {
         stage = 'session-store';
         await env.DB.prepare('INSERT INTO website_sessions (session_hash,discord_id,username,expires_at) VALUES (?,?,?,?)')
           .bind(await sha(session), user.id, user.global_name || user.username, now + TIMEOUT).run();
-        return redirect(SITE + '/', [clear, cookie(SESSION, session, TIMEOUT)]);
+        const destination = requestCookies[RETURN] === 'forum' ? '/Forum' : requestCookies[RETURN] === 'market' ? '/Market' : '/';
+        return redirect(SITE + destination, [clear, cookie(RETURN, '', 0), cookie(SESSION, session, TIMEOUT)]);
       }
       if (url.pathname === '/download-loader' && request.method === 'GET') {
         if (!env.LOADER_BUCKET) return json(request, { error: 'Download is not configured.' }, 503);

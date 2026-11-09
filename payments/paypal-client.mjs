@@ -1,8 +1,9 @@
 import { LIFETIME_LICENSE } from './verification.mjs';
 
-// Sandbox only. Live credentials and endpoints must not be used until the whole
-// checkout, reconciliation and fulfillment flow has been tested end to end.
-const ORIGIN = 'https://api-m.sandbox.paypal.com';
+// Live transport is deliberately not connected to any public route until
+// production fulfillment, refunds and recovery have been tested end to end.
+const SANDBOX_ORIGIN = 'https://api-m.sandbox.paypal.com';
+const LIVE_ORIGIN = 'https://api-m.paypal.com';
 const CALLBACK = 'https://zesthub.win/';
 const safeId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(value);
 async function requestKey(prefix, purchaseId) {
@@ -10,9 +11,10 @@ async function requestKey(prefix, purchaseId) {
   return prefix + Array.from(digest.slice(0, 16), x => x.toString(16).padStart(2, '0')).join('');
 }
 
-export class PayPalSandbox {
-  constructor({ clientId, clientSecret, merchantId, transport = (...args) => fetch(...args) }) {
-    if (!clientId || !clientSecret || !merchantId) throw new Error('PayPal sandbox credentials are required');
+class PayPalClient {
+  constructor({ clientId, clientSecret, merchantId, transport = (...args) => fetch(...args) }, origin) {
+    if (!clientId || !clientSecret || !merchantId) throw new Error('PayPal credentials are required');
+    this.origin = origin;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.merchantId = merchantId;
@@ -21,12 +23,12 @@ export class PayPalSandbox {
 
   async accessToken() {
     const credentials = btoa(`${this.clientId}:${this.clientSecret}`);
-    const response = await this.transport(`${ORIGIN}/v1/oauth2/token`, {
+    const response = await this.transport(`${this.origin}/v1/oauth2/token`, {
       method: 'POST', redirect: 'manual', headers: { Authorization: `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=client_credentials'
     });
     if (!response.ok) {
-      const error = new Error('PayPal sandbox authentication failed');
+      const error = new Error('PayPal authentication failed');
       error.kind = 'paypal_auth'; error.status = response.status;
       throw error;
     }
@@ -40,10 +42,10 @@ export class PayPalSandbox {
     const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
     if (body !== undefined || rawBody !== undefined) headers['Content-Type'] = 'application/json';
     if (requestId) headers['PayPal-Request-Id'] = requestId;
-    const response = await this.transport(`${ORIGIN}${path}`, { method, headers, redirect: 'manual',
+    const response = await this.transport(`${this.origin}${path}`, { method, headers, redirect: 'manual',
       ...(rawBody !== undefined ? { body: rawBody } : body === undefined ? {} : { body: JSON.stringify(body) }) });
     if (!response.ok) {
-      const error = new Error('PayPal sandbox request failed');
+      const error = new Error('PayPal request failed');
       error.kind = 'paypal_request'; error.status = response.status;
       throw error;
     }
@@ -97,4 +99,12 @@ export class PayPalSandbox {
     const result = await this.request('/v1/notifications/verify-webhook-signature', { method: 'POST', rawBody });
     return result.verification_status === 'SUCCESS';
   }
+}
+
+export class PayPalSandbox extends PayPalClient {
+  constructor(options) { super(options, SANDBOX_ORIGIN); }
+}
+
+export class PayPalLive extends PayPalClient {
+  constructor(options) { super(options, LIVE_ORIGIN); }
 }

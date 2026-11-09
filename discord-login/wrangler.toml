@@ -10,6 +10,7 @@ crons = ["*/5 * * * *"]
 DISCORD_CLIENT_ID = "1568754980708552867"
 DISCORD_GUILD_ID = "1568752937986162728"
 DISCORD_BUYER_ROLE_ID = "1568754660033036480"
+DISCORD_OWNER_ROLE_ID = "1568753375665725511"
 PAYMENTS_SANDBOX_ENABLED = "true"
 PAYPAL_SANDBOX_CLIENT_ID = "AZwEYwbHEevB3ncUwXQMywUzngd2IsB0EPTwn_eojVB5XTEyyL0-gaVeWtzcRy1Hbqsh4w2nNB6kpHBp"
 PAYPAL_SANDBOX_MERCHANT_ID = "NR7XB9M7MHAYJ"
@@ -37,3 +38,8 @@ database_id = "d51708e8-bbd2-4441-981d-ffa7926aae80"
 name = "SANDBOX_LIMIT"
 namespace_id = "12347"
 simple = { limit = 20, period = 60 }
+
+[[ratelimits]]
+name = "COMMUNITY_LIMIT"
+namespace_id = "12348"
+simple = { limit = 10, period = 60 }

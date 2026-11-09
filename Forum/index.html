@@ -5,16 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Forum | Zest Hub</title>
   <link rel="stylesheet" href="/style.css">
+  <script src="/community.js" defer></script>
 </head>
-<body>
-  <div role="navigation" aria-label="Main navigation" class="bar">
-    <a class="button-link" href="/">Home</a>
-    <a class="button-link" href="/Forum" aria-current="page">Forum</a>
-    <a class="button-link" href="/Market">Market</a>
-  </div>
-  <main class="hero">
-    <h1>Forum</h1>
-    <p>The forum is coming soon.</p>
+<body data-community="forum">
+  <nav class="community-nav" aria-label="Main navigation"><a href="/">Zest Hub</a><div><a href="/Forum" aria-current="page">Forum</a><a href="/Market">Market</a></div></nav>
+  <main class="community-main">
+    <header class="community-header"><div><p class="community-kicker">ZEST HUB</p><h1>Forum</h1><p>Talk with the community.</p></div><button id="login-link" type="button" hidden>Login with Discord</button><span id="community-user"></span></header>
+    <section class="community-compose" aria-labelledby="compose-title" hidden id="compose">
+      <h2 id="compose-title">New post</h2>
+      <form id="post-form"><label for="post-title">Title</label><input id="post-title" maxlength="100" required><label for="post-body">Message</label><textarea id="post-body" maxlength="4000" rows="5" required></textarea><button class="community-submit" type="submit">Post</button></form>
+    </section>
+    <p id="community-status" role="status"></p><section aria-label="Forum posts" id="posts" class="community-posts"></section>
   </main>
 </body>
 </html>

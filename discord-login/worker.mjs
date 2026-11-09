@@ -23,6 +23,24 @@ function json(request, value, status = 200, values = []) {
   return new Response(JSON.stringify(value), { status, headers });
 }
 
+async function readCommunityBody(request) {
+  if (!request.body) throw new Error('Missing body');
+  const reader = request.body.getReader(), chunks = [];
+  let length = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > 8192) { await reader.cancel(); throw new Error('Body too large'); }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(length); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } finally { reader.releaseLock(); }
+}
+
 export async function getDiscordAccess(discordId, env) {
   if (!env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_GUILD_ID || '') ||
       !/^\d{15,22}$/.test(env.DISCORD_BUYER_ROLE_ID || '')) throw new Error('Role check is not configured');
@@ -31,7 +49,7 @@ export async function getDiscordAccess(discordId, env) {
   const [member, roles, guild] = await Promise.all([
     fetch(`${base}/members/${discordId}`, options), fetch(`${base}/roles`, options), fetch(base, options)
   ]);
-  if (member.status === 404) return { buyer: false, role: 'Not in server' };
+  if (member.status === 404) return { buyer: false, role: 'Not in server', marketOwner: false };
   if (!member.ok || !roles.ok || !guild.ok) throw new Error('Discord role lookup failed');
   const [memberData, roleData, guildData] = await Promise.all([member.json(), roles.json(), guild.json()]);
   if (!Array.isArray(roleData) || !Array.isArray(memberData.roles)) throw new Error('Invalid Discord role data');
@@ -41,7 +59,8 @@ export async function getDiscordAccess(discordId, env) {
   assigned.sort((a, b) => b.position - a.position || (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0));
   const highest = assigned[0];
   const role = typeof highest?.name === 'string' && highest.name.trim() ? highest.name.trim().slice(0, 100) : 'Member';
-  return { role, buyer: guildData.owner_id === discordId || assigned.some(role =>
+  return { role, marketOwner: /^\d{15,22}$/.test(env.DISCORD_OWNER_ROLE_ID || '') && memberData.roles.includes(env.DISCORD_OWNER_ROLE_ID),
+    buyer: guildData.owner_id === discordId || assigned.some(role =>
     role.position > buyer.position || (role.position === buyer.position && BigInt(role.id) <= BigInt(buyer.id))) };
 }
 
@@ -53,6 +72,46 @@ export default {
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
     let stage = 'request';
     try {
+      if (url.pathname === '/community/forum' || url.pathname === '/community/market') {
+        if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
+        if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: {
+          'Access-Control-Allow-Origin': SITE, 'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
+        } });
+        const kind = url.pathname.endsWith('/forum') ? 'forum' : 'market';
+        if (request.method === 'GET') {
+          const result = await env.DB.prepare('SELECT id,title,body,author_name,created_at FROM community_posts WHERE kind=? ORDER BY created_at DESC,id DESC LIMIT 100').bind(kind).all();
+          return json(request, { posts: result.results });
+        }
+        if (request.method !== 'POST') return json(request, { error: 'Method not allowed' }, 405);
+        const token = cookies(request)[SESSION];
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        const session = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
+          .bind(await sha(token), Math.floor(Date.now()/1000)).first();
+        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!env.COMMUNITY_LIMIT || !(await env.COMMUNITY_LIMIT.limit({ key: session.discord_id })).success)
+          return json(request, { error: 'Please try again later.' }, 429);
+        if (kind === 'market') {
+          if (!env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_GUILD_ID || '') || !/^\d{15,22}$/.test(env.DISCORD_OWNER_ROLE_ID || ''))
+            return json(request, { error: 'Market posting is unavailable.' }, 503);
+          const member = await fetch(`https://discord.com/api/v10/guilds/${env.DISCORD_GUILD_ID}/members/${session.discord_id}`,
+            { headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` }, redirect: 'manual' });
+          if (member.status === 404) return json(request, { error: 'Zest Owner role required.' }, 403);
+          if (!member.ok) return json(request, { error: 'Could not verify your role.' }, 503);
+          const memberData = await member.json();
+          if (!Array.isArray(memberData.roles) || !memberData.roles.includes(env.DISCORD_OWNER_ROLE_ID))
+            return json(request, { error: 'Zest Owner role required.' }, 403);
+        }
+        let data;
+        try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid post.' }, 400); }
+        const title = typeof data?.title === 'string' ? data.title.trim() : '';
+        const body = typeof data?.body === 'string' ? data.body.trim() : '';
+        if (!title || title.length > 100 || !body || body.length > 4000) return json(request, { error: 'Enter a title and message within the limits.' }, 400);
+        const id = random().slice(0, 24), created = Math.floor(Date.now()/1000);
+        await env.DB.prepare('INSERT INTO community_posts(id,kind,title,body,author_id,author_name,created_at) VALUES (?,?,?,?,?,?,?)')
+          .bind(id, kind, title, body, session.discord_id, session.username, created).run();
+        return json(request, { id }, 201);
+      }
       if (url.pathname === '/sandbox/payments/webhook') {
         if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_WEBHOOK_ID ||
             !env.PAYPAL_SANDBOX_CLIENT_ID || !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID)
@@ -144,7 +203,7 @@ export default {
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
         if (!row) return json(request, { user: null, buyer: false });
         const access = await getDiscordAccess(row.discord_id, env);
-        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role }, buyer: access.buyer });
+        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role }, buyer: access.buyer, marketOwner: access.marketOwner });
       }
       if (url.pathname === '/logout' && request.method === 'POST') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);

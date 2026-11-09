@@ -137,3 +137,32 @@ button:hover, .button-link:hover {
   button, .button-link { transition: none; }
   button:hover, .button-link:hover { transform: none; }
 }
+
+.community-nav, .community-main { width: min(960px, calc(100% - 40px)); margin-inline: auto; box-sizing: border-box; text-align: left; }
+.community-nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 0; border-bottom: 1px solid #333; }
+.community-nav a { color: #aaa; text-decoration: none; margin-right: 18px; }
+.community-nav > a, .community-nav a[aria-current="page"] { color: white; }
+.community-nav a:hover { color: #b580ff; }
+.community-main { padding: 48px 0 80px; }
+.community-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.community-header h1 { font-size: clamp(2.2rem, 6vw, 3.5rem); margin: 0; }
+.community-header p { color: #aaa; margin: 8px 0; }
+.community-header .community-kicker { color: #b580ff; font-size: .75rem; letter-spacing: .14em; }
+.community-note, .community-meta, .community-empty { color: #aaa; }
+.community-note { margin: 28px 0; }
+.community-compose { margin-top: 32px; border: 1px solid #3a2a4b; border-radius: 12px; padding: 22px; background: #1b1b1b; }
+.community-compose[hidden] { display: none; }
+.community-compose h2 { margin: 0 0 16px; font-size: 1.1rem; }
+.community-compose form { display: grid; gap: 10px; }
+.community-compose label { color: #bbb; font-size: .9rem; }
+.community-compose input, .community-compose textarea { box-sizing: border-box; width: 100%; border: 1px solid #444; border-radius: 8px; background: #151515; padding: 12px; color: #fff; font: inherit; }
+.community-compose input:focus, .community-compose textarea:focus { outline: 2px solid #7700ff; outline-offset: 1px; }
+.community-compose textarea { resize: vertical; }
+.community-submit { justify-self: start; border: 1px solid #7700ff; margin-top: 4px; }
+.community-submit:disabled { opacity: .5; cursor: wait; }
+.community-posts { margin-top: 28px; border-top: 1px solid #333; }
+.community-post { padding: 20px 0; border-bottom: 1px solid #333; overflow-wrap: anywhere; }
+.community-post h2 { margin: 0; font-size: 1.15rem; }
+.community-meta { margin: 6px 0 12px; font-size: .8rem; }
+.community-body { margin: 0; white-space: pre-wrap; line-height: 1.55; }
+@media (max-width: 600px) { .community-main { padding-top: 32px; } .community-nav a { margin-right: 10px; } }

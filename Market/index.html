@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Market | Zest Hub</title>
   <link rel="stylesheet" href="/style.css">
+  <script src="/community.js" defer></script>
 </head>
-<body>
-  <div role="navigation" aria-label="Main navigation" class="bar">
-    <a class="button-link" href="/">Home</a>
-    <a class="button-link" href="/Forum">Forum</a>
-    <a class="button-link" href="/Market" aria-current="page">Market</a>
-  </div>
-  <main class="hero">
-    <h1>Market</h1>
-    <p>Config marketplace coming soon.</p>
-    <p>You'll be able to share and sell your configs here in the future.</p>
+<body data-community="market">
+  <nav class="community-nav" aria-label="Main navigation"><a href="/">Zest Hub</a><div><a href="/Forum">Forum</a><a href="/Market" aria-current="page">Market</a></div></nav>
+  <main class="community-main">
+    <header class="community-header"><div><p class="community-kicker">ZEST HUB</p><h1>Market</h1><p>Configs and updates from Zest Hub.</p></div><button id="login-link" type="button" hidden>Login with Discord</button><span id="community-user"></span></header>
+    <p class="community-note">Only Zest Owner can post here. Config purchases and downloads are coming later.</p>
+    <section class="community-compose" aria-labelledby="compose-title" hidden id="compose">
+      <h2 id="compose-title">New listing</h2>
+      <form id="post-form"><label for="post-title">Title</label><input id="post-title" maxlength="100" required><label for="post-body">Description</label><textarea id="post-body" maxlength="4000" rows="5" required></textarea><button class="community-submit" type="submit">Publish</button></form>
+    </section>
+    <p id="community-status" role="status"></p><section aria-label="Market listings" id="posts" class="community-posts"></section>
   </main>
 </body>
 </html>

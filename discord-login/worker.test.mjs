@@ -123,11 +123,11 @@ test('Discord access displays the highest assigned role while keeping buyer chec
       { id: '123456789012345681', name: 'Mod', position: 3 }
     ]) : String(url).includes('/members/') ? Response.json({ roles: memberRoles })
       : Response.json({ owner_id: '999999999999999999' });
-    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Mod', buyer: true });
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Mod', buyer: true, marketOwner: false });
     memberRoles = ['123456789012345679'];
-    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false });
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false, marketOwner: false });
     memberRoles = [];
-    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false });
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false, marketOwner: false });
   } finally { globalThis.fetch = original; }
 });
 test('successful Discord callback creates a session without storing Discord tokens', async () => {

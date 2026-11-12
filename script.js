@@ -30,7 +30,8 @@ typeLetter(1);
 
 const loginButton = document.getElementById("login-btn");
 const logoutButton = document.getElementById("logout-btn");
-const discordUser = document.getElementById("discord-user");
+const discordAvatar = document.getElementById("discord-avatar");
+const avatarFallback = document.getElementById("avatar-fallback");
 const loginStatus = document.getElementById("login-status");
 const loginService = "https://login.zesthub.win";
 const downloadButton = document.getElementById("download-btn");
@@ -38,6 +39,11 @@ const buyButton = document.getElementById("buy-btn");
 const accountButton = document.getElementById("account-btn");
 const accountDialog = document.getElementById("account-dialog");
 const accountName = document.getElementById("account-name");
+
+discordAvatar.addEventListener("error", () => {
+  discordAvatar.hidden = true;
+  avatarFallback.hidden = false;
+});
 
 accountButton.addEventListener("click", () => accountDialog.showModal());
 document.getElementById("account-close").addEventListener("click", () => accountDialog.close());
@@ -55,8 +61,10 @@ async function updateLogin() {
     const response = await fetch(`${loginService}/me`, { credentials: "include" });
     if (!response.ok) throw new Error("Login unavailable");
     const { user, buyer } = await response.json();
-    discordUser.textContent = user ? `${user.name} | ${user.role || "Member"}` : "";
-    discordUser.hidden = !user;
+    discordAvatar.hidden = !user?.avatarUrl;
+    avatarFallback.hidden = Boolean(user?.avatarUrl);
+    if (user?.avatarUrl) discordAvatar.src = user.avatarUrl;
+    else discordAvatar.removeAttribute("src");
     accountButton.hidden = !user;
     accountName.textContent = user ? `${user.name} | ${user.role || "Member"}` : "";
     if (!user && accountDialog.open) accountDialog.close();

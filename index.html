@@ -12,8 +12,18 @@
     <p id="typewriter"></p>
   </main>
   <div class="bar hidden" id="bar">
-    <a class="button-link" href="/Forum">Forum</a>
-    <a class="button-link" href="/Market">Market</a>
+    <nav class="bar-links" aria-label="Main navigation">
+      <a class="button-link" href="/Forum">Forum</a>
+      <a class="button-link" href="/Market">Market</a>
+    </nav>
+    <section class="login hidden" id="login" aria-label="Account">
+      <button class="login-btn" id="login-btn" type="button">Login with Discord</button>
+      <button class="account-btn" id="account-btn" type="button" aria-label="Open account" title="Account" hidden>
+        <img id="discord-avatar" alt="" width="40" height="40" hidden>
+        <svg id="avatar-fallback" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg>
+      </button>
+      <p id="login-status" role="status"></p>
+    </section>
   </div>
   <main class="hero hidden" id="hero">
     <h1>Zest Hub</h1>
@@ -21,18 +31,10 @@
     <button id="buy-btn" type="button" title="Checkout coming soon" disabled>Buy</button>
     <a class="button-link" href="https://discord.gg/j8rxvnFeGJ">Discord</a>
   </main>
-  <section class="login hidden" id="login">
-    <span id="discord-user" hidden></span>
-    <button class="account-btn" id="account-btn" type="button" aria-label="Open account" title="Account" hidden>
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg>
-    </button>
-    <button class="login-btn" id="login-btn" type="button">Login with Discord</button>
-    <button id="logout-btn" type="button" hidden>Log out</button>
-    <p id="login-status" role="status"></p>
-  </section>
   <dialog id="account-dialog" class="account-dialog" aria-labelledby="account-title">
     <div class="account-heading"><h2 id="account-title">Your account</h2><button id="account-close" type="button" aria-label="Close account">×</button></div>
     <p id="account-name"></p>
+    <button id="logout-btn" type="button" hidden>Log out</button>
   </dialog>
 </body>
 </html>

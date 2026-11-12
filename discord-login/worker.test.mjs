@@ -41,6 +41,39 @@ test('an anonymous session is returned as signed out', async () => {
   assert.deepEqual(await r.json(), { user: null, buyer: false });
   assert.equal(r.headers.get('access-control-allow-origin'), 'https://zesthub.win');
 });
+
+test('signed-in sessions include the Discord profile avatar with default fallback', async () => {
+  const original = globalThis.fetch;
+  const id = '123456789012345678';
+  const config = { ...env, DISCORD_BOT_TOKEN: 'test', DISCORD_GUILD_ID: id,
+    DISCORD_BUYER_ROLE_ID: '123456789012345680',
+    DB: { prepare: () => ({ bind: () => ({ first: async () => ({ discord_id: id, username: 'Test' }) }) }) } };
+  try {
+    for (const [profile, expected] of [
+      [{ avatar: 'abc123', discriminator: '0' }, `https://cdn.discordapp.com/avatars/${id}/abc123.png?size=80`],
+      [{ avatar: 'a_abc123', discriminator: '0' }, `https://cdn.discordapp.com/avatars/${id}/a_abc123.gif?size=80`],
+      [{ avatar: null, discriminator: '0' }, 'https://cdn.discordapp.com/embed/avatars/0.png'],
+      [{ avatar: null, discriminator: '1234' }, 'https://cdn.discordapp.com/embed/avatars/4.png'],
+      [null, 'https://cdn.discordapp.com/embed/avatars/0.png']
+    ]) {
+      globalThis.fetch = async url => {
+        if (String(url) === `https://discord.com/api/v10/users/${id}`)
+          return profile ? Response.json({ id, username: 'Test', ...profile }) : new Response(null, { status: 503 });
+        if (String(url).endsWith('/roles')) return Response.json([{ id: config.DISCORD_BUYER_ROLE_ID, position: 2 }]);
+        if (String(url).includes('/members/')) return Response.json({ roles: [] });
+        return Response.json({ owner_id: '999999999999999999' });
+      };
+      const response = await worker.fetch(new Request('https://login.zesthub.win/me', { headers: {
+        Origin: 'https://zesthub.win', Cookie: '__Host-zest_session=' + 'a'.repeat(64)
+      } }), config);
+      assert.equal(response.status, 200);
+      const session = await response.json();
+      assert.equal(session.user.avatarUrl, expected);
+      assert.equal(session.user.name, 'Test');
+      assert.equal(session.buyer, false);
+    }
+  } finally { globalThis.fetch = original; }
+});
 test('loader download checks the session and Discord role before reading the private object', async () => {
   const original = globalThis.fetch;
   let reads = 0, authorized = false;

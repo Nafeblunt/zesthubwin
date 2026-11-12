@@ -78,6 +78,23 @@ export async function getDiscordAccess(discordId, env) {
 
 export async function hasBuyerAccess(discordId, env) { return (await getDiscordAccess(discordId, env)).buyer; }
 
+async function getDiscordAvatar(discordId, env) {
+  let profile;
+  try {
+    const response = await fetch(`https://discord.com/api/v10/users/${discordId}`, {
+      headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` }, redirect: 'manual'
+    });
+    if (response.ok) profile = await response.json();
+  } catch { /* Keep account access available if the profile lookup fails. */ }
+  if (typeof profile?.avatar === 'string' && /^(?:a_)?[a-f0-9]+$/.test(profile.avatar)) {
+    const extension = profile.avatar.startsWith('a_') ? 'gif' : 'png';
+    return `https://cdn.discordapp.com/avatars/${discordId}/${profile.avatar}.${extension}?size=80`;
+  }
+  const index = /^[1-9]\d{0,3}$/.test(profile?.discriminator || '')
+    ? Number(profile.discriminator) % 5 : Number((BigInt(discordId) >> 22n) % 6n);
+  return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -220,8 +237,8 @@ export default {
         const row = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
         if (!row) return json(request, { user: null, buyer: false });
-        const access = await getDiscordAccess(row.discord_id, env);
-        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role }, buyer: access.buyer, marketOwner: access.marketOwner });
+        const [access, avatarUrl] = await Promise.all([getDiscordAccess(row.discord_id, env), getDiscordAvatar(row.discord_id, env)]);
+        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role, avatarUrl }, buyer: access.buyer, marketOwner: access.marketOwner });
       }
       if (url.pathname === '/logout' && request.method === 'POST') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);

@@ -56,18 +56,14 @@
 
 div.bar {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 0 5px 2px rgb(119, 0, 255);
-  border: 0px solid #444;
+  background: rgb(25, 25, 25);
+  border: 1px solid rgb(30, 30, 30);
   box-sizing: border-box;
-  width: fit-content;
-  max-width: 100%;
   margin-inline: auto;
   padding: 4px;
-  border-radius: 12px;
-
+  border-radius: 0px;
 }
 
 .bar.hidden {

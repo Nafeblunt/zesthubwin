@@ -21,6 +21,7 @@ function typeLetter(i) {
         hero.classList.remove("hidden");
         login.classList.remove("hidden");
         bar.classList.remove("hidden");
+        document.getElementById("chat").classList.remove("hidden");
       }, 600);
     }, HOLD_TIME);
   }
@@ -61,6 +62,7 @@ async function updateLogin() {
     const response = await fetch(`${loginService}/me`, { credentials: "include" });
     if (!response.ok) throw new Error("Login unavailable");
     const { user, buyer } = await response.json();
+    window.dispatchEvent(new CustomEvent("zest:session", { detail: { user } }));
     discordAvatar.hidden = !user?.avatarUrl;
     avatarFallback.hidden = Boolean(user?.avatarUrl);
     if (user?.avatarUrl) discordAvatar.src = user.avatarUrl;
@@ -74,6 +76,7 @@ async function updateLogin() {
     buyButton.hidden = Boolean(buyer);
     loginStatus.textContent = "";
   } catch {
+    window.dispatchEvent(new CustomEvent("zest:session", { detail: { user: null } }));
     accountButton.hidden = true;
     if (accountDialog.open) accountDialog.close();
     downloadButton.hidden = true;

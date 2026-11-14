@@ -101,6 +101,37 @@ export default {
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
     let stage = 'request';
     try {
+      if (url.pathname === '/chat') {
+        if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
+        if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: {
+          'Access-Control-Allow-Origin': SITE, 'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
+        } });
+        if (request.method === 'GET') {
+          const result = await env.DB.prepare(`SELECT * FROM (
+            SELECT id,body,author_id,author_name,author_avatar,created_at FROM chat_messages
+            ORDER BY created_at DESC,id DESC LIMIT 100
+          ) ORDER BY created_at ASC,id ASC`).all();
+          return json(request, { messages: result.results });
+        }
+        if (request.method !== 'POST') return json(request, { error: 'Method not allowed' }, 405);
+        const token = cookies(request)[SESSION];
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        const session = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
+          .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
+        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!env.COMMUNITY_LIMIT || !(await env.COMMUNITY_LIMIT.limit({ key: session.discord_id })).success)
+          return json(request, { error: 'Too many messages. Please wait a moment.' }, 429);
+        let data;
+        try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid message.' }, 400); }
+        const body = typeof data?.body === 'string' ? data.body.trim() : '';
+        if (!body || body.length > 280) return json(request, { error: 'Enter a message between 1 and 280 characters.' }, 400);
+        const message = { id: random().slice(0, 24), body, author_id: session.discord_id,
+          author_name: session.username, author_avatar: await getDiscordAvatar(session.discord_id, env), created_at: Math.floor(Date.now() / 1000) };
+        await env.DB.prepare('INSERT INTO chat_messages(id,body,author_id,author_name,author_avatar,created_at) VALUES (?,?,?,?,?,?)')
+          .bind(message.id, message.body, message.author_id, message.author_name, message.author_avatar, message.created_at).run();
+        return json(request, { message }, 201);
+      }
       const community = /^\/community\/(forum|market)(?:\/([a-f0-9]{24}))?$/.exec(url.pathname);
       if (community) {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);

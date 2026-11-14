@@ -56,6 +56,7 @@ async function loadSession() {
   if (!response.ok) throw new Error('Could not check Discord login.');
   const session = await response.json();
   currentSession = session;
+  window.dispatchEvent(new CustomEvent('zest:session', { detail: session }));
   login.hidden = Boolean(session.user);
   document.getElementById('community-user').textContent = session.user ? `${session.user.name} | ${session.user.role || 'Member'}` : '';
   compose.hidden = !session.user || (kind === 'market' && !session.marketOwner);

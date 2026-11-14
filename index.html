@@ -20,6 +20,7 @@
       <a class="button-link" href="/" aria-current="page">Home</a>
       <a class="button-link" href="/Forum">Forum</a>
       <a class="button-link" href="/Market">Market</a>
+      <a class="button-link" href="/Chat">Chat</a>
     </nav>
     <section class="login hidden" id="login" aria-label="Account">
       <button class="login-btn" id="login-btn" type="button">Login with Discord</button>
@@ -42,15 +43,15 @@
     <button id="logout-btn" type="button" hidden>Log out</button>
   </dialog>
   <section class="chat hidden" id="chat" aria-labelledby="chat-title">
-    <header class="chat-header"><div><h2 id="chat-title">Shoutbox</h2></div><span class="chat-badge">Community chat</span></header>
+    <header class="chat-header"><div><h2 id="chat-title">Shoutbox</h2></div><span class="chat-badge">Team updates</span></header>
     <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Community messages"><p class="chat-empty">Loading messages…</p></div>
-    <form class="chat-form" id="chat-form">
+    <form class="chat-form" id="chat-form" hidden>
       <label class="visually-hidden" for="chat-input">Your message</label>
       <input type="text" id="chat-input" placeholder="Sign in with Discord to chat" maxlength="280" autocomplete="off" required disabled aria-describedby="chat-status">
       <span class="chat-count" id="chat-count">0/280</span>
       <button class="chat-send" type="submit" disabled>Send <span aria-hidden="true">↗</span></button>
     </form>
-    <p class="chat-status" id="chat-status" role="status">Sign in with Discord to join the conversation.</p>
+    <p class="chat-status" id="chat-status" role="status"></p>
   </section>
 </body>
 </html>

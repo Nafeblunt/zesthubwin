@@ -9,19 +9,19 @@
   <script src="/community.js" defer></script>
 </head>
 <body data-community="forum">
-  <nav class="community-nav" aria-label="Main navigation"><a href="/">Zest Hub</a><div><a href="/Forum" aria-current="page">Forum</a><a href="/Market">Market</a></div></nav>
+  <nav class="community-nav" aria-label="Main navigation"><a href="/">Zest Hub</a><div><a href="/Forum" aria-current="page">Forum</a><a href="/Market">Market</a><a href="/Chat">Chat</a></div></nav>
   <main class="community-main">
     <header class="community-header"><div><p class="community-kicker">ZEST HUB</p><h1>Forum</h1><p>Talk with the community.</p></div><button id="login-link" type="button" hidden>Login with Discord</button><span id="community-user"></span></header>
     <section class="chat" id="chat" aria-labelledby="chat-title">
-      <header class="chat-header"><div><h2 id="chat-title">Shoutbox</h2><p>Quick messages with the community</p></div><span class="chat-badge">Community chat</span></header>
+      <header class="chat-header"><div><h2 id="chat-title">Shoutbox</h2><p>The latest from the Zest team</p></div><span class="chat-badge">Team updates</span></header>
       <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Community messages"><p class="chat-empty">Loading messages…</p></div>
-      <form class="chat-form" id="chat-form">
+      <form class="chat-form" id="chat-form" hidden>
         <label class="visually-hidden" for="chat-input">Your message</label>
         <input type="text" id="chat-input" placeholder="Sign in with Discord to chat" maxlength="280" autocomplete="off" required disabled aria-describedby="chat-status">
         <span class="chat-count" id="chat-count">0/280</span>
         <button class="chat-send" type="submit" disabled>Send <span aria-hidden="true">↗</span></button>
       </form>
-      <p class="chat-status" id="chat-status" role="status">Sign in with Discord to join the conversation.</p>
+      <p class="chat-status" id="chat-status" role="status"></p>
     </section>
     <section class="community-compose" aria-labelledby="compose-title" hidden id="compose">
       <h2 id="compose-title">New post</h2>

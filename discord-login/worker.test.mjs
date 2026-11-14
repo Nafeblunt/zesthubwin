@@ -21,6 +21,8 @@ test('login begins with random state in an HttpOnly cookie', async () => {
 test('login only remembers allowed community return paths', async () => {
   const forum = await worker.fetch(new Request('https://login.zesthub.win/start?next=%2FForum'), env);
   assert.match(forum.headers.get('set-cookie'), /__Host-zest_return=forum/);
+  const chat = await worker.fetch(new Request('https://login.zesthub.win/start?next=%2FChat'), env);
+  assert.match(chat.headers.get('set-cookie'), /__Host-zest_return=chat/);
   const external = await worker.fetch(new Request('https://login.zesthub.win/start?next=https%3A%2F%2Fevil.example'), env);
   assert.doesNotMatch(external.headers.get('set-cookie'), /__Host-zest_return=forum|__Host-zest_return=market/);
 });
@@ -162,11 +164,11 @@ test('Discord access displays the highest assigned role while keeping buyer chec
       { id: '123456789012345681', name: 'Mod', position: 3 }
     ]) : String(url).includes('/members/') ? Response.json({ roles: memberRoles })
       : Response.json({ owner_id: '999999999999999999' });
-    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Mod', buyer: true, marketOwner: false });
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Mod', buyer: true, marketOwner: false, shoutboxWriter: false });
     memberRoles = ['123456789012345679'];
-    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false, marketOwner: false });
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false, marketOwner: false, shoutboxWriter: false });
     memberRoles = [];
-    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false, marketOwner: false });
+    assert.deepEqual(await getDiscordAccess('111111111111111111', config), { role: 'Member', buyer: false, marketOwner: false, shoutboxWriter: false });
   } finally { globalThis.fetch = original; }
 });
 test('successful Discord callback creates a session without storing Discord tokens', async () => {
@@ -196,10 +198,12 @@ test('successful login returns community visitors to the requested page', async 
       ? Response.json({ access_token: 'test-token', token_type: 'bearer' })
       : Response.json({ id: '123456789012345678', username: 'test-user' });
     const state = 'a'.repeat(64);
-    const r = await worker.fetch(new Request(`https://login.zesthub.win/callback?state=${state}&code=test`, {
-      headers: { Cookie: `__Host-zest_oauth_state=${state}; __Host-zest_return=market` }
-    }), { ...env, DB: fakeDB });
-    assert.equal(r.headers.get('location'), 'https://zesthub.win/Market');
-    assert.match(r.headers.get('set-cookie'), /__Host-zest_return=;.*Max-Age=0/);
+    for (const [returnPage, destination] of [['market', '/Market'], ['chat', '/Chat']]) {
+      const r = await worker.fetch(new Request(`https://login.zesthub.win/callback?state=${state}&code=test`, {
+        headers: { Cookie: `__Host-zest_oauth_state=${state}; __Host-zest_return=${returnPage}` }
+      }), { ...env, DB: fakeDB });
+      assert.equal(r.headers.get('location'), 'https://zesthub.win' + destination);
+      assert.match(r.headers.get('set-cookie'), /__Host-zest_return=;.*Max-Age=0/);
+    }
   } finally { globalThis.fetch = original; }
 });

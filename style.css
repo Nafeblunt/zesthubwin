@@ -1,9 +1,13 @@
 ﻿body {
-  font-family: Comic Sans MS, Comic Sans, cursive;
+  font-family: Monaco, monospace;
   background: #151515;
   color: #ffffff;
   text-align: center;
   margin: 0;
+}
+
+button, input, textarea, select {
+  font-family: inherit;
 }
 
 .loader {
@@ -52,7 +56,7 @@
 .account-btn svg { display: block; width: 24px; height: 24px; margin: auto; }
 #login-status { position: absolute; top: 100%; right: 0; width: min(300px, calc(100vw - 32px)); margin: 8px 0 0; background: #202020; border-radius: 8px; padding: 10px; font-size: 14px; z-index: 1; }
 #login-status:empty { display: none; }
-.account-dialog { width: min(420px, calc(100% - 60px)); color: #fff; border: 1px solid #444; border-radius: 14px; padding: 24px; text-align: left; font-family: inherit; }
+.account-dialog { width: min(420px, calc(100% - 60px)); color: #fff; border: 1px solid #444; border-radius: 14px; padding: 24px; text-align: left; font-family: Monaco, monospace; }
 .account-dialog::backdrop { background: rgba(0, 0, 0, .75); }
 .account-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .account-heading h2 { margin: 0; }
@@ -101,7 +105,7 @@ div.bar {
   padding: 30px 15px;
   font-size: 16px;
   color: #fff;
-  font-family: inherit;
+  font-family: Monaco, monospace;
   width: 220px;
   text-align: center;
 }
@@ -112,7 +116,7 @@ div.bar {
 }
 
 button, .button-link {
-  font-family: Comic Sans MS, Comic Sans, cursive;
+  font-family: Monaco, monospace;
   background: rgba(66, 138, 245, 0);
   border: 0;
   border-radius: 8px;
@@ -216,6 +220,13 @@ button:hover, .button-link:hover {
 .chat-message time { flex-shrink: 0; margin-top: 8px; color: #797884; font-size: 10px; }
 .chat-empty { display: grid; place-items: center; min-height: 100%; margin: 0; color: #91909a; font-size: 13px; text-align: center; }
 .chat-form { display: flex; align-items: center; gap: 12px; padding: 14px; border-top: 1px solid #2b2b2e; }
+.chat-form[hidden] { display: none; }
+.chat-full { display: flex; flex-direction: column; min-height: 460px; height: min(680px, calc(100dvh - 300px)); }
+.chat-full .chat-messages { flex: 1; min-height: 0; height: auto; }
+.chat-full .chat-header, .chat-full .chat-form { flex-shrink: 0; }
+.chat-account { display: flex; align-items: center; gap: 12px; color: #bda4e4; font-size: 13px; }
+.chat-account button { border: 1px solid #453954; font-size: 13px; }
+.chat-rules { color: #8f8b97; font-size: 11px; line-height: 1.7; }
 .chat-form input { width: 0; flex: 1; min-width: 0; padding: 11px 12px; box-sizing: border-box; border: 1px solid #353438; border-radius: 6px; background: #0e0e10; color: #eee; font: inherit; font-size: 13px; transition: border-color .2s ease, box-shadow .2s ease; }
 .chat-form input::placeholder { color: #81808a; }
 .chat-form input:focus { outline: none; border-color: var(--chat-accent); box-shadow: 0 0 0 3px #a58aff12; }
@@ -230,6 +241,12 @@ button:hover, .button-link:hover {
 .chat-message-new { animation: chatAppear .25s ease both; }
 @keyframes chatAppear { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 600px) {
+  .community-nav { gap: 10px; }
+  .community-nav > a { margin-right: 0; white-space: nowrap; }
+  .community-nav div { display: flex; gap: 12px; }
+  .community-nav div a { margin-right: 0; font-size: 14px; }
+  .chat-page .community-main { width: calc(100% - 24px); }
+  .chat-full { min-height: 400px; height: calc(100dvh - 315px); }
   .chat { width: calc(100% - 24px); margin-top: 24px; }
   .chat-header { padding: 16px 14px; }
   .chat-badge { display: none; }

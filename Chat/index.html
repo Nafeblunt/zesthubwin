@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat | Zest Hub</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/chat.js" defer></script>
+</head>
+<body class="chat-page">
+  <nav class="community-nav" aria-label="Main navigation"><a href="/">Zest Hub</a><div><a href="/Forum">Forum</a><a href="/Market">Market</a><a href="/Chat" aria-current="page">Chat</a></div></nav>
+  <main class="community-main chat-main">
+    <header class="community-header"><div><p class="community-kicker">ZEST HUB</p><h1>Chat</h1><p>A place for the whole community.</p></div><div class="chat-account"><span id="chat-user"></span><button id="chat-login" type="button">Login with Discord</button></div></header>
+    <section class="chat chat-full" id="chat" data-room="community" aria-labelledby="chat-title">
+      <header class="chat-header"><div><h2 id="chat-title">Community chat</h2><p>Everyone is welcome. Keep it respectful.</p></div><span class="chat-badge">Text chat</span></header>
+      <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Community messages"><p class="chat-empty">Loading messages…</p></div>
+      <form class="chat-form" id="chat-form" hidden>
+        <label class="visually-hidden" for="chat-input">Your message</label>
+        <input type="text" id="chat-input" placeholder="Say something…" maxlength="280" autocomplete="off" required disabled aria-describedby="chat-status chat-rules">
+        <span class="chat-count" id="chat-count">0/280</span>
+        <button class="chat-send" type="submit" disabled>Send <span aria-hidden="true">↗</span></button>
+      </form>
+      <p class="chat-status" id="chat-status" role="status">Sign in with Discord to join the conversation.</p>
+    </section>
+    <p class="chat-rules" id="chat-rules">No abusive language, invite advertising, or unsafe links. Messages are filtered before posting.</p>
+  </main>
+</body>
+</html>

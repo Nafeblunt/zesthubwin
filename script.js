@@ -61,8 +61,8 @@ async function updateLogin() {
   try {
     const response = await fetch(`${loginService}/me`, { credentials: "include" });
     if (!response.ok) throw new Error("Login unavailable");
-    const { user, buyer } = await response.json();
-    window.dispatchEvent(new CustomEvent("zest:session", { detail: { user } }));
+    const { user, buyer, shoutboxWriter } = await response.json();
+    window.dispatchEvent(new CustomEvent("zest:session", { detail: { user, shoutboxWriter } }));
     discordAvatar.hidden = !user?.avatarUrl;
     avatarFallback.hidden = Boolean(user?.avatarUrl);
     if (user?.avatarUrl) discordAvatar.src = user.avatarUrl;

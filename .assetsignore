@@ -2,6 +2,7 @@
 !index.html
 !script.js
 !community.js
+!chat.js
 !style.css
 !ZestIco.png
 !_headers
@@ -11,6 +12,9 @@ Forum/*
 !Market/
 Market/*
 !Market/index.html
+!Chat/
+Chat/*
+!Chat/index.html
 !payments/
 payments/*
 !payments/sandbox.html

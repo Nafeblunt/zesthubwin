@@ -3,6 +3,7 @@ import { handleSandboxPayment } from '../payments/routes.mjs';
 import { PayPalSandbox } from '../payments/paypal-client.mjs';
 import { receiveWebhook } from '../payments/webhook.mjs';
 import { processCompletedEvent, processReversalEvent } from '../payments/webhook-processor.mjs';
+import { chatFilterError } from './chat-filter.mjs';
 const REDIRECT = 'https://login.zesthub.win/callback';
 const SESSION = '__Host-zest_session';
 const STATE = '__Host-zest_oauth_state';
@@ -61,7 +62,7 @@ export async function getDiscordAccess(discordId, env) {
   const [member, roles, guild] = await Promise.all([
     fetch(`${base}/members/${discordId}`, options), fetch(`${base}/roles`, options), fetch(base, options)
   ]);
-  if (member.status === 404) return { buyer: false, role: 'Not in server', marketOwner: false };
+  if (member.status === 404) return { buyer: false, role: 'Not in server', marketOwner: false, shoutboxWriter: false };
   if (!member.ok || !roles.ok || !guild.ok) throw new Error('Discord role lookup failed');
   const [memberData, roleData, guildData] = await Promise.all([member.json(), roles.json(), guild.json()]);
   if (!Array.isArray(roleData) || !Array.isArray(memberData.roles)) throw new Error('Invalid Discord role data');
@@ -71,7 +72,11 @@ export async function getDiscordAccess(discordId, env) {
   assigned.sort((a, b) => b.position - a.position || (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0));
   const highest = assigned[0];
   const role = typeof highest?.name === 'string' && highest.name.trim() ? highest.name.trim().slice(0, 100) : 'Member';
-  return { role, marketOwner: /^\d{15,22}$/.test(env.DISCORD_OWNER_ROLE_ID || '') && memberData.roles.includes(env.DISCORD_OWNER_ROLE_ID),
+  const marketOwner = /^\d{15,22}$/.test(env.DISCORD_OWNER_ROLE_ID || '') && memberData.roles.includes(env.DISCORD_OWNER_ROLE_ID);
+  const dev = env.DISCORD_DEV_ROLE_ID
+    ? /^\d{15,22}$/.test(env.DISCORD_DEV_ROLE_ID) && memberData.roles.includes(env.DISCORD_DEV_ROLE_ID)
+    : assigned.some(role => role.name?.trim().toLowerCase() === 'dev');
+  return { role, marketOwner, shoutboxWriter: marketOwner || dev,
     buyer: guildData.owner_id === discordId || assigned.some(role =>
     role.position > buyer.position || (role.position === buyer.position && BigInt(role.id) <= BigInt(buyer.id))) };
 }
@@ -101,7 +106,9 @@ export default {
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
     let stage = 'request';
     try {
-      if (url.pathname === '/chat') {
+      if (url.pathname === '/chat' || url.pathname === '/shoutbox') {
+        const shoutbox = url.pathname === '/shoutbox';
+        const table = shoutbox ? 'chat_messages' : 'public_chat_messages';
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
         if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: {
           'Access-Control-Allow-Origin': SITE, 'Access-Control-Allow-Credentials': 'true',
@@ -109,7 +116,7 @@ export default {
         } });
         if (request.method === 'GET') {
           const result = await env.DB.prepare(`SELECT * FROM (
-            SELECT id,body,author_id,author_name,author_avatar,created_at FROM chat_messages
+            SELECT id,body,author_id,author_name,author_avatar,created_at FROM ${table}
             ORDER BY created_at DESC,id DESC LIMIT 100
           ) ORDER BY created_at ASC,id ASC`).all();
           return json(request, { messages: result.results });
@@ -120,15 +127,19 @@ export default {
         const session = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
         if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (shoutbox && !(await getDiscordAccess(session.discord_id, env)).shoutboxWriter)
+          return json(request, { error: 'Only Dev and Zest Owner can post in the Shoutbox.' }, 403);
         if (!env.COMMUNITY_LIMIT || !(await env.COMMUNITY_LIMIT.limit({ key: session.discord_id })).success)
           return json(request, { error: 'Too many messages. Please wait a moment.' }, 429);
         let data;
         try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid message.' }, 400); }
         const body = typeof data?.body === 'string' ? data.body.trim() : '';
         if (!body || body.length > 280) return json(request, { error: 'Enter a message between 1 and 280 characters.' }, 400);
+        const filterError = chatFilterError(body);
+        if (filterError) return json(request, { error: filterError }, 400);
         const message = { id: random().slice(0, 24), body, author_id: session.discord_id,
           author_name: session.username, author_avatar: await getDiscordAvatar(session.discord_id, env), created_at: Math.floor(Date.now() / 1000) };
-        await env.DB.prepare('INSERT INTO chat_messages(id,body,author_id,author_name,author_avatar,created_at) VALUES (?,?,?,?,?,?)')
+        await env.DB.prepare(`INSERT INTO ${table}(id,body,author_id,author_name,author_avatar,created_at) VALUES (?,?,?,?,?,?)`)
           .bind(message.id, message.body, message.author_id, message.author_name, message.author_avatar, message.created_at).run();
         return json(request, { message }, 201);
       }
@@ -200,7 +211,7 @@ export default {
       if (url.pathname === '/start' && request.method === 'GET') {
         const state = random();
         const next = url.searchParams.get('next');
-        const returnPage = next === '/Forum' ? 'forum' : next === '/Market' ? 'market' : '';
+        const returnPage = next === '/Forum' ? 'forum' : next === '/Market' ? 'market' : next === '/Chat' ? 'chat' : '';
         const authorization = new URL('https://discord.com/oauth2/authorize');
         authorization.search = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, redirect_uri: REDIRECT, response_type: 'code', scope: 'identify', state });
         return redirect(authorization.toString(), [cookie(STATE, state, 600), cookie(RETURN, returnPage, returnPage ? 600 : 0)]);
@@ -242,7 +253,7 @@ export default {
         stage = 'session-store';
         await env.DB.prepare('INSERT INTO website_sessions (session_hash,discord_id,username,expires_at) VALUES (?,?,?,?)')
           .bind(await sha(session), user.id, user.global_name || user.username, now + TIMEOUT).run();
-        const destination = requestCookies[RETURN] === 'forum' ? '/Forum' : requestCookies[RETURN] === 'market' ? '/Market' : '/';
+        const destination = requestCookies[RETURN] === 'forum' ? '/Forum' : requestCookies[RETURN] === 'market' ? '/Market' : requestCookies[RETURN] === 'chat' ? '/Chat' : '/';
         return redirect(SITE + destination, [clear, cookie(RETURN, '', 0), cookie(SESSION, session, TIMEOUT)]);
       }
       if (url.pathname === '/download-loader' && request.method === 'GET') {
@@ -269,7 +280,7 @@ export default {
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
         if (!row) return json(request, { user: null, buyer: false });
         const [access, avatarUrl] = await Promise.all([getDiscordAccess(row.discord_id, env), getDiscordAvatar(row.discord_id, env)]);
-        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role, avatarUrl }, buyer: access.buyer, marketOwner: access.marketOwner });
+        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role, avatarUrl }, buyer: access.buyer, marketOwner: access.marketOwner, shoutboxWriter: access.shoutboxWriter });
       }
       if (url.pathname === '/logout' && request.method === 'POST') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);

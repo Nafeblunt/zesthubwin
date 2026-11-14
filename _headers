@@ -12,3 +12,6 @@
 
 /Market*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://login.zesthub.win; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+
+/Chat*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com; connect-src 'self' https://login.zesthub.win; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'

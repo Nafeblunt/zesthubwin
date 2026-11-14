@@ -27,7 +27,7 @@
       <section id="account-panel-profile" class="account-panel" role="tabpanel" aria-labelledby="account-tab-profile">
         <p class="account-kicker">DISCORD</p>
         <p id="account-name"></p>
-        <button id="logout-btn" type="button" hidden>Log out</button>
+        <button id="logout-btn" class="button-link" type="button" hidden>Log out</button>
       </section>
       <section id="account-panel-licence" class="account-panel" role="tabpanel" aria-labelledby="account-tab-licence" hidden>
         <form id="account-licence-form">

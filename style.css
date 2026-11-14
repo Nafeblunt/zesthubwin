@@ -56,22 +56,21 @@ button, input, textarea, select {
 .account-btn svg { display: block; width: 24px; height: 24px; margin: auto; }
 #login-status { position: absolute; top: 100%; right: 0; width: min(300px, calc(100vw - 32px)); margin: 8px 0 0; background: #202020; border-radius: 8px; padding: 10px; font-size: 14px; z-index: 1; }
 #login-status:empty { display: none; }
-.account-dialog { width: min(620px, calc(100% - 32px)); box-sizing: border-box; max-height: calc(100dvh - 32px); overflow: auto; background: #171719; color: #eee; color-scheme: dark; border: 1px solid #3c3844; border-radius: 14px; padding: 0; text-align: left; font-family: Monaco, monospace; box-shadow: 0 24px 80px #0008; }
+.account-dialog { width: min(620px, calc(100% - 32px)); box-sizing: border-box; max-height: calc(100dvh - 32px); overflow: auto; background: var(--panel-background); color: #eee; color-scheme: dark; border: 1px solid var(--panel-border); border-radius: 12px; padding: 0; text-align: left; font-family: Monaco, monospace; box-shadow: 0 24px 80px #0008; }
 .account-dialog::backdrop { background: rgba(0, 0, 0, .75); }
-.account-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; background: #1d1c20; border-bottom: 1px solid #333036; }
-.account-heading h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.account-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; background: var(--panel-header); border-bottom: 1px solid var(--panel-divider); }
+.account-heading h2 { margin: 0; font-size: 15px; font-weight: 600; }
 .account-heading button { font-size: 24px; line-height: 1; padding: 4px 8px; color: #aaa2b4; }
 .account-layout { display: grid; grid-template-columns: 130px minmax(0, 1fr); min-height: 205px; }
-.account-tabs { display: flex; flex-direction: column; gap: 6px; padding: 16px 10px; border-right: 1px solid #333036; background: #141416; }
+.account-tabs { display: flex; flex-direction: column; gap: 6px; padding: 16px 10px; border-right: 1px solid var(--panel-divider); background: var(--panel-header); }
 .account-tabs button { padding: 10px 12px; text-align: left; font-size: 12px; color: #aaa1b5; }
 .account-tabs button[aria-selected="true"] { background: #a58aff1a; color: #d3c2ff; }
-.account-dialog button:hover { transform: none; text-shadow: none; color: #d3c2ff; }
+.account-heading button:hover, .account-tabs button:hover, .account-licence-actions button:hover { transform: none; text-shadow: none; color: #d3c2ff; }
 .account-dialog button:focus-visible { outline: 2px solid #a58aff; outline-offset: 2px; }
-.account-panel { padding: 24px 20px; min-width: 0; }
+.account-panel { padding: 24px 20px; min-width: 0; background: var(--panel-background); }
 .account-panel[hidden] { display: none; }
 .account-kicker { margin: 0 0 14px; color: #8f869c; font-size: 10px; letter-spacing: .12em; }
 #account-name { margin: 0 0 20px; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
-#logout-btn { padding: 8px 12px; border: 1px solid #433a4d; font-size: 12px; }
 #account-licence-form { display: grid; gap: 12px; }
 #account-licence-form label { font-size: 13px; color: #d7cde3; }
 #account-licence-key { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; border: 1px solid #46404f; border-radius: 7px; background: #0f0f11; color: #ded3f4; font: inherit; font-size: 12px; }
@@ -219,7 +218,7 @@ button:hover, .button-link:hover {
 @media (max-width: 600px) { .community-main { padding-top: 32px; } .community-nav a { margin-right: 10px; } }
 
 /* Community chat and the shared navigation selection. */
-:root { --chat-accent: #a58aff; }
+:root { --chat-accent: #a58aff; --panel-background: #111112; --panel-header: #181819; --panel-border: #303030; --panel-divider: #2b2b2e; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .bar-links { align-self: stretch; align-items: stretch; gap: 6px; }
 .bar-links a, .community-nav a { position: relative; transition: color .2s ease, background-color .2s ease; }
@@ -234,10 +233,10 @@ button:hover, .button-link:hover {
 .community-nav a { display: inline-block; }
 .community-nav a::after { left: 0; right: 0; bottom: -24px; }
 .hero { padding: 40px 20px 12px; }
-.chat { width: min(960px, calc(100% - 40px)); margin: 32px auto 60px; box-sizing: border-box; overflow: hidden; border: 1px solid #303030; border-radius: 12px; background: #111112; text-align: left; animation: chatAppear .35s ease both; }
+.chat { width: min(960px, calc(100% - 40px)); margin: 32px auto 60px; box-sizing: border-box; overflow: hidden; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel-background); text-align: left; animation: chatAppear .35s ease both; }
 .chat.hidden { display: none; }
 .community-main .chat { width: 100%; margin: 28px 0; }
-.chat-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid #2b2b2e; background: #181819; }
+.chat-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--panel-divider); background: var(--panel-header); }
 .chat-header h2 { margin: 0; font-size: 15px; font-weight: 600; }
 .chat-header h1 { margin: 0; font-size: 15px; font-weight: 600; }
 .chat-header p { margin: 5px 0 0; color: #8f8f9b; font-size: 12px; }
@@ -254,9 +253,9 @@ button:hover, .button-link:hover {
 .chat button.chat-name:hover { transform: none; text-shadow: none; color: #e0d3ff; }
 .chat button.chat-name:disabled { opacity: 1; cursor: text; color: #d0baff; }
 .chat button.chat-name:focus-visible { outline: 1px solid #a58aff; outline-offset: 3px; }
-.chat-user-menu { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(210px, calc(100vw - 16px)); padding: 10px; border: 1px solid #303030; border-radius: 9px; background: #111112; color: #e0d9e8; font-family: inherit; text-align: left; box-shadow: 0 8px 28px #0006; }
+.chat-user-menu { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(210px, calc(100vw - 16px)); padding: 10px; border: 1px solid var(--panel-border); border-radius: 9px; background: var(--panel-background); color: #eee; font-family: inherit; text-align: left; box-shadow: 0 8px 28px #0006; }
 .chat-user-menu:popover-open { display: grid; gap: 6px; animation: chatMenuIn .14s ease both; }
-.chat-menu-name { margin: 2px 6px 8px; overflow-wrap: anywhere; font-size: 12px; color: #151515; }
+.chat-menu-name { margin: -10px -10px 4px; padding: 12px 14px; border-bottom: 1px solid var(--panel-divider); border-radius: 8px 8px 0 0; background: var(--panel-header); overflow-wrap: anywhere; font-size: 12px; color: #eee; }
 .chat-user-menu button { width: 100%; padding: 9px 8px; border-radius: 5px; text-align: left; font-size: 12px; color: #e0d9e8; }
 .chat-user-menu button:hover { background: #a58aff16; color: #eee; text-shadow: none; transform: none; }
 .chat-user-menu button:disabled { opacity: .4; cursor: not-allowed; }

@@ -231,5 +231,15 @@ if (new URLSearchParams(window.location.search).get("login") === "failed") {
 }
 updateLogin();
 
+document.querySelectorAll('.button-link, #account-panel-profile button').forEach(button => {
+  button.addEventListener('pointermove', event => {
+    if (event.pointerType === 'touch' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const bounds = button.getBoundingClientRect();
+    if (!bounds.width) return;
+    const position = Math.max(-1, Math.min(1, (event.clientX - bounds.left) / bounds.width * 2 - 1));
+    button.style.setProperty('--hover-tilt', `${position * 6}deg`);
+  });
+  button.addEventListener('pointerleave', () => button.style.removeProperty('--hover-tilt'));
+});
 
 })();

@@ -224,7 +224,7 @@ button:hover, .button-link:hover {
 .chat-full { display: flex; flex-direction: column; min-height: 460px; height: min(680px, calc(100dvh - 300px)); }
 .chat-full .chat-messages { flex: 1; min-height: 0; height: auto; }
 .chat-full .chat-header, .chat-full .chat-form { flex-shrink: 0; }
-.chat-account { display: flex; align-items: center; gap: 12px; color: #bda4e4; font-size: 13px; }
+.chat-account { display: flex; align-items: center; gap: 12px; color: #bda4e4; font-size: 24px; }
 .chat-account button { border: 1px solid #453954; font-size: 13px; }
 .chat-rules { color: #8f8b97; font-size: 11px; line-height: 1.7; }
 .chat-form input { width: 0; flex: 1; min-width: 0; padding: 11px 12px; box-sizing: border-box; border: 1px solid #353438; border-radius: 6px; background: #0e0e10; color: #eee; font: inherit; font-size: 13px; transition: border-color .2s ease, box-shadow .2s ease; }

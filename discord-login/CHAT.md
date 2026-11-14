@@ -41,3 +41,17 @@ Run the login and chat checks from the website root:
 ```powershell
 node --test discord-login/*.test.mjs
 ```
+
+## Deployment troubleshooting
+
+If `/chat` or `/shoutbox` returns `404 {"error":"Not found"}`, the login Worker
+is older than the website. Apply the schema and deploy the Worker as shown above;
+publishing only the website does not update that service.
+
+The website sends `Cache-Control: no-transform` so Cloudflare does not inject its
+inline JavaScript Detections snippet, which conflicts with `script-src 'self'`.
+This leaves JavaScript Detection results missing for these pages; it does not
+change zone-wide WAF settings. If you later require JavaScript Detections, use
+fresh per-response CSP nonces as described in the
+[Cloudflare documentation](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/).
+Do not add `unsafe-inline` or hardcode a shared nonce to silence the warning.

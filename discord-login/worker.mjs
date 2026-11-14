@@ -121,31 +121,61 @@ export default {
         return await handleAccountLicense(request, session.discord_id, { db: env.DB, secret: env.ACCOUNT_VAULT_SECRET,
           limiter: env.COMMUNITY_LIMIT, readBody: readCommunityBody, reply: (value, status) => json(request, value, status) });
       }
-      if (url.pathname === '/chat' || url.pathname === '/shoutbox') {
-        const shoutbox = url.pathname === '/shoutbox';
+      const chatRoute = /^\/(chat|shoutbox)(?:\/([a-f0-9]{24})(\/mute)?)?$/.exec(url.pathname);
+      if (chatRoute) {
+        const [, room, messageId, muteAction] = chatRoute;
+        const shoutbox = room === 'shoutbox';
         const table = shoutbox ? 'chat_messages' : 'public_chat_messages';
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
         if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: {
           'Access-Control-Allow-Origin': SITE, 'Access-Control-Allow-Credentials': 'true',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
+          'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
         } });
-        if (request.method === 'GET') {
+        const token = cookies(request)[SESSION];
+        const getSession = async () => !token || !/^[a-f0-9]{64}$/.test(token) ? null : env.DB
+          .prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
+          .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
+        if (request.method === 'GET' && !messageId) {
           const result = await env.DB.prepare(`SELECT * FROM (
-            SELECT id,body,author_id,author_name,author_avatar,created_at FROM ${table}
+            SELECT id,body,author_id,author_name,author_avatar,created_at,
+            COALESCE((SELECT muted_until FROM chat_mutes WHERE discord_id=author_id),0) AS author_muted_until FROM ${table}
             ORDER BY created_at DESC,id DESC LIMIT 100
           ) ORDER BY created_at ASC,id ASC`).all();
-          return json(request, { messages: result.results });
+          const session = await getSession();
+          const mute = session && await env.DB.prepare('SELECT muted_until FROM chat_mutes WHERE discord_id=?').bind(session.discord_id).first();
+          return json(request, { messages: result.results, ...(session ? { mutedUntil: mute?.muted_until || 0 } : {}) });
         }
-        if (request.method !== 'POST') return json(request, { error: 'Method not allowed' }, 405);
-        const token = cookies(request)[SESSION];
-        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
-        const session = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
-          .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
+        if (!(request.method === 'POST' && (!messageId || muteAction)) && !(request.method === 'DELETE' && messageId))
+          return json(request, { error: 'Method not allowed' }, 405);
+        const session = await getSession();
         if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
-        if (shoutbox && !(await getDiscordAccess(session.discord_id, env)).shoutboxWriter)
-          return json(request, { error: 'Only Dev and Zest Owner can post in the Shoutbox.' }, 403);
+        if ((messageId || shoutbox) && !(await getDiscordAccess(session.discord_id, env)).shoutboxWriter)
+          return json(request, { error: messageId ? 'You cannot moderate chat.' : 'Only Dev and Zest Owner can post here.' }, 403);
         if (!env.COMMUNITY_LIMIT || !(await env.COMMUNITY_LIMIT.limit({ key: session.discord_id })).success)
           return json(request, { error: 'Too many messages. Please wait a moment.' }, 429);
+        if (messageId) {
+          const message = await env.DB.prepare(`SELECT author_id FROM ${table} WHERE id=?`).bind(messageId).first();
+          if (!message) return json(request, { error: 'Message not found.' }, 404);
+          if (!muteAction) {
+            await env.DB.prepare(`DELETE FROM ${table} WHERE id=?`).bind(messageId).run();
+            return json(request, { ok: true });
+          }
+          if (request.method === 'DELETE') {
+            await env.DB.prepare('DELETE FROM chat_mutes WHERE discord_id=?').bind(message.author_id).run();
+            return json(request, { mutedUntil: 0 });
+          }
+          if (message.author_id === session.discord_id) return json(request, { error: 'You cannot mute yourself.' }, 400);
+          let data;
+          try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Choose a mute duration.' }, 400); }
+          if (![600, 3600, 86400].includes(data?.duration)) return json(request, { error: 'Choose a mute duration.' }, 400);
+          const mutedUntil = Math.floor(Date.now() / 1000) + data.duration;
+          await env.DB.prepare(`INSERT INTO chat_mutes(discord_id,muted_until,moderator_id) VALUES (?,?,?)
+            ON CONFLICT(discord_id) DO UPDATE SET muted_until=excluded.muted_until,moderator_id=excluded.moderator_id`)
+            .bind(message.author_id, mutedUntil, session.discord_id).run();
+          return json(request, { mutedUntil });
+        }
+        const mute = await env.DB.prepare('SELECT muted_until FROM chat_mutes WHERE discord_id=?').bind(session.discord_id).first();
+        if (mute?.muted_until > Math.floor(Date.now() / 1000)) return json(request, { error: 'You are muted.', mutedUntil: mute.muted_until }, 403);
         let data;
         try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid message.' }, 400); }
         const body = typeof data?.body === 'string' ? data.body.trim() : '';

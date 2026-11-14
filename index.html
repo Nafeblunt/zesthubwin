@@ -6,6 +6,7 @@
   <title>Zest Hub</title>
   <link rel="icon" href="/ZestIco.png" type="image/png">
   <link rel="stylesheet" href="style.css">
+  <script src="shell.js" defer></script>
   <script src="chat.js" defer></script>
   <script src="script.js" defer></script>
 </head>
@@ -16,58 +17,17 @@
   </main>
 
 
-  <div class="bar hidden" id="bar">
-    <nav class="bar-links" aria-label="Main navigation">
-      <a class="button-link" href="/" aria-current="page">Home</a>
-      <a class="button-link" href="/Forum">Forum</a>
-      <a class="button-link" href="/Market">Market</a>
-      <a class="button-link" href="/Chat">Chat</a>
-    </nav>
-    <section class="login hidden" id="login" aria-label="Account">
-      <button class="login-btn" id="login-btn" type="button">Login with Discord</button>
-      <button class="account-btn" id="account-btn" type="button" aria-label="Open account" title="Account" hidden>
-        <img id="discord-avatar" alt="" width="40" height="40" hidden>
-        <svg id="avatar-fallback" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg>
-      </button>
-      <p id="login-status" role="status"></p>
-    </section>
-  </div>
+  <div id="site-header" data-page="Home"></div>
+
   <main class="hero hidden" id="hero">
     <h1>Zest Hub</h1>
     <button id="download-btn" type="button" hidden>Download</button>
     <button id="buy-btn" type="button" title="Checkout coming soon" disabled>Buy</button>
     <a class="button-link" href="https://discord.gg/j8rxvnFeGJ">Discord</a>
   </main>
-  <dialog id="account-dialog" class="account-dialog" aria-labelledby="account-title">
-    <div class="account-heading"><h2 id="account-title">Your account</h2><button id="account-close" type="button" aria-label="Close account">×</button></div>
-    <div class="account-layout">
-      <div class="account-tabs" role="tablist" aria-label="Account sections" aria-orientation="vertical">
-        <button id="account-tab-profile" type="button" role="tab" aria-selected="true" aria-controls="account-panel-profile">Account</button>
-        <button id="account-tab-licence" type="button" role="tab" aria-selected="false" aria-controls="account-panel-licence" tabindex="-1">Licence</button>
-      </div>
-      <section id="account-panel-profile" class="account-panel" role="tabpanel" aria-labelledby="account-tab-profile">
-        <p class="account-kicker">DISCORD ACCOUNT</p>
-        <p id="account-name"></p>
-        <button id="logout-btn" type="button" hidden>Log out</button>
-      </section>
-      <section id="account-panel-licence" class="account-panel" role="tabpanel" aria-labelledby="account-tab-licence" hidden>
-        <form id="account-licence-form">
-          <label for="account-licence-key">Your licence</label>
-          <input id="account-licence-key" type="text" placeholder="ZEST-XXXXXXXXXXXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="53" aria-describedby="account-licence-status" disabled>
-          <div class="account-licence-actions"><button id="account-licence-link" type="submit" disabled>Redeem licence</button><button id="account-licence-copy" type="button" hidden>Copy key</button></div>
-        </form>
-        <dl class="account-licence-info" id="account-licence-info" hidden>
-          <div><dt>Status</dt><dd id="account-licence-state"></dd></div>
-          <div><dt>Duration</dt><dd id="account-licence-duration"></dd></div>
-          <div><dt>Activated</dt><dd id="account-licence-activated"></dd></div>
-          <div><dt>Expires</dt><dd id="account-licence-expires"></dd></div>
-        </dl>
-        <p id="account-licence-status" role="status"></p>
-      </section>
-    </div>
-  </dialog>
+
   <section class="chat hidden" id="chat" aria-labelledby="chat-title">
-    <header class="chat-header"><div><h2 id="chat-title">Shoutbox</h2></div><span class="chat-badge">Team updates</span></header>
+    <header class="chat-header"><div><h2 id="chat-title">Shoutbox</h2></div></header>
     <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Community messages"><p class="chat-empty">Loading messages…</p></div>
     <form class="chat-form" id="chat-form" hidden>
       <label class="visually-hidden" for="chat-input">Your message</label>

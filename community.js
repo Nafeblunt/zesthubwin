@@ -1,14 +1,13 @@
+(() => {
 const api = 'https://login.zesthub.win';
 const kind = document.body.dataset.community;
 const posts = document.getElementById('posts');
 const status = document.getElementById('community-status');
 const compose = document.getElementById('compose');
 const form = document.getElementById('post-form');
-const login = document.getElementById('login-link');
 let currentSession = null;
 let cachedPosts = [];
 
-login.addEventListener('click', () => window.location.assign(`${api}/start?next=${encodeURIComponent(kind === 'forum' ? '/Forum' : '/Market')}`));
 
 async function loadPosts() {
   const response = await fetch(`${api}/community/${kind}`, { credentials: 'include' });
@@ -51,17 +50,11 @@ function renderPosts() {
   }
 }
 
-async function loadSession() {
-  const response = await fetch(api + '/me', { credentials: 'include' });
-  if (!response.ok) throw new Error('Could not check Discord login.');
-  const session = await response.json();
-  currentSession = session;
-  window.dispatchEvent(new CustomEvent('zest:session', { detail: session }));
-  login.hidden = Boolean(session.user);
-  document.getElementById('community-user').textContent = session.user ? `${session.user.name} | ${session.user.role || 'Member'}` : '';
-  compose.hidden = !session.user || (kind === 'market' && !session.marketOwner);
+window.addEventListener('zest:session', event => {
+  currentSession = event.detail;
+  compose.hidden = !currentSession?.user || (kind === 'market' && !currentSession.marketOwner);
   renderPosts();
-}
+});
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
@@ -77,7 +70,6 @@ form.addEventListener('submit', async event => {
   finally { button.disabled = false; }
 });
 
-Promise.allSettled([loadPosts(), loadSession()]).then(results => {
-  const failure = results.find(result => result.status === 'rejected');
-  if (failure) status.textContent = failure.reason.message || 'Please try again later.';
-});
+loadPosts().catch(error => { status.textContent = error.message || 'Could not load posts.'; });
+
+})();

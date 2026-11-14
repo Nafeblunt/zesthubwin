@@ -25,9 +25,9 @@ async function setup(t) {
     DISCORD_OWNER_ROLE_ID: '123456789012345679', DISCORD_DEV_ROLE_ID: '123456789012345681',
     COMMUNITY_LIMIT: { limit: async () => ({ success: true }) } } };
 }
-function request({ method = 'GET', signedIn = false, body, origin = 'https://zesthub.win', room = 'chat' } = {}) {
+function request({ method = 'GET', signedIn = false, body, origin = 'https://zesthub.win', room = 'chat', sessionToken = token } = {}) {
   return new Request('https://login.zesthub.win/' + room, { method,
-    headers: { Origin: origin, ...(signedIn ? { Cookie: '__Host-zest_session=' + token } : {}), 'Content-Type': 'application/json' },
+    headers: { Origin: origin, ...(signedIn ? { Cookie: '__Host-zest_session=' + sessionToken } : {}), 'Content-Type': 'application/json' },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 
@@ -132,4 +132,77 @@ test('Dev role name fallback uses server roles, and role lookup failure denies s
   assert.equal((await worker.fetch(request({ room: 'shoutbox', method: 'POST', signedIn: true, body: { body: 'Update' } }), env)).status, 201);
   globalThis.fetch = async () => new Response(null, { status: 503 });
   assert.equal((await worker.fetch(request({ room: 'shoutbox', method: 'POST', signedIn: true, body: { body: 'Update' } }), env)).status, 503);
+});
+
+function mockRoles(t, env, roles) {
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (String(url).endsWith('/roles')) return Response.json([
+      { id: env.DISCORD_BUYER_ROLE_ID, name: 'Buyer', position: 1 },
+      { id: env.DISCORD_DEV_ROLE_ID, name: 'Dev', position: 3 },
+      { id: env.DISCORD_OWNER_ROLE_ID, name: 'Zest Owner', position: 5 }
+    ]);
+    if (String(url).includes('/members/')) return Response.json({ roles: roles() });
+    return Response.json({ owner_id: '999999999999999999', avatar: 'abc123' });
+  });
+}
+
+test('only Dev and Owner can remove the selected message in its own room', async t => {
+  const { env, sql } = await setup(t);
+  let roles = [];
+  mockRoles(t, env, () => roles);
+  const id = 'a'.repeat(24), otherId = 'b'.repeat(24);
+  for (const table of ['chat_messages', 'public_chat_messages']) {
+    for (const key of [id, otherId]) sql.prepare(`INSERT INTO ${table} VALUES (?,?,?,?,?,?)`).run(key, 'Hi', '222222222222222222', 'Member', '', 1);
+  }
+  const remove = room => worker.fetch(request({ method: 'DELETE', signedIn: true, room: room + '/' + id }), env);
+  assert.equal((await remove('chat')).status, 403);
+  assert.equal((await worker.fetch(request({ method: 'DELETE', room: 'chat/' + id }), env)).status, 401);
+  roles = [env.DISCORD_DEV_ROLE_ID];
+  assert.equal((await remove('chat')).status, 200);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM public_chat_messages').get().n, 1);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM chat_messages').get().n, 2);
+  roles = [env.DISCORD_OWNER_ROLE_ID];
+  assert.equal((await remove('shoutbox')).status, 200);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM chat_messages').get().n, 1);
+  assert.equal((await remove('chat')).status, 404);
+});
+
+test('staff mutes block direct message sends, can be removed, and expire', async t => {
+  const { env, sql } = await setup(t);
+  mockRoles(t, env, () => [env.DISCORD_DEV_ROLE_ID]);
+  const id = 'c'.repeat(24), memberToken = 'b'.repeat(64);
+  const hash = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(memberToken))).toString('hex');
+  sql.prepare('INSERT INTO website_sessions VALUES (?,?,?,?)').run(hash, '222222222222222222', 'Member', Math.floor(Date.now()/1000)+3600);
+  sql.prepare('INSERT INTO public_chat_messages VALUES (?,?,?,?,?,?)').run(id, 'Hi', '222222222222222222', 'Member', '', 1);
+  const muted = await worker.fetch(request({ method: 'POST', signedIn: true, room: 'chat/' + id + '/mute', body: { duration: 3600 } }), env);
+  assert.equal(muted.status, 200);
+  assert.ok((await muted.json()).mutedUntil > Math.floor(Date.now()/1000));
+  const send = () => worker.fetch(request({ method: 'POST', signedIn: true, sessionToken: memberToken, body: { body: 'Still here', mutedUntil: 0 } }), env);
+  const blocked = await send();
+  assert.equal(blocked.status, 403);
+  assert.ok((await blocked.json()).mutedUntil > 0);
+  const read = await (await worker.fetch(request({ signedIn: true, sessionToken: memberToken }), env)).json();
+  assert.ok(read.mutedUntil > 0);
+  assert.ok(read.messages[0].author_muted_until > 0);
+  assert.equal((await worker.fetch(request({ method: 'DELETE', signedIn: true, room: 'chat/' + id + '/mute' }), env)).status, 200);
+  assert.equal((await send()).status, 201);
+  sql.exec("INSERT OR REPLACE INTO chat_mutes VALUES ('222222222222222222',1,'111111111111111111')");
+  assert.equal((await send()).status, 201);
+});
+
+test('mute actions reject members, spoofed origins, invalid durations and self-muting', async t => {
+  const { env, sql } = await setup(t);
+  let roles = [];
+  mockRoles(t, env, () => roles);
+  const id = 'd'.repeat(24);
+  sql.prepare('INSERT INTO public_chat_messages VALUES (?,?,?,?,?,?)').run(id, 'Hi', '111111111111111111', 'Me', '', 1);
+  const mute = extra => worker.fetch(request({ method: 'POST', signedIn: true, room: 'chat/' + id + '/mute', body: { duration: 3600 }, ...extra }), env);
+  assert.equal((await mute()).status, 403);
+  roles = [env.DISCORD_OWNER_ROLE_ID];
+  assert.equal((await mute({ origin: 'https://evil.example' })).status, 403);
+  assert.equal((await mute()).status, 400);
+  sql.exec("UPDATE public_chat_messages SET author_id='222222222222222222'");
+  assert.equal((await mute({ body: { duration: -1 } })).status, 400);
+  globalThis.fetch = async () => new Response(null, { status: 503 });
+  assert.equal((await mute()).status, 503);
 });

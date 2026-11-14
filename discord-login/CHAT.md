@@ -17,6 +17,21 @@ Messages are limited to 280 characters and
 use the existing community rate limiter (10 writes per minute, shared with posts).
 The browser refreshes every five seconds while the page is visible.
 
+Dev and Zest Owner can click a message author's name for moderation actions.
+The menu opens by the name and supports 10-minute, 1-hour and 24-hour mutes,
+unmuting, and removing that single message. Staff rights are rechecked against
+Discord for every action. Ordinary members cannot use these endpoints:
+
+- `DELETE /chat/:messageId` (or `/shoutbox/:messageId`) removes one message.
+- `POST /chat/:messageId/mute` with `{ "duration": 3600 }` mutes that author.
+- `DELETE /chat/:messageId/mute` unmutes that author.
+
+Mutes apply to posting in both Chat and Shoutbox and expire automatically. They
+do not delete existing messages or affect forum posts. Self-muting is blocked.
+Apply the updated `chat-schema.sql` before deployment; it adds `chat_mutes`
+without removing messages. Responses include current mute times so the client
+can disable posting and show an Unmute action when appropriate.
+
 Both endpoints reject blocked language (including common separator/leet/Unicode
 variants), Discord invite ads, non-HTTPS links, common URL shorteners, IP/local
 links, embedded URL credentials and executable/script download links. The rules
@@ -34,7 +49,10 @@ npx wrangler deploy
 ```
 
 Publish the website assets including `Chat/index.html`, `chat.js`, `.assetsignore`
-and the updated `_headers` file. Forum and Chat CSP allow Discord avatars.
+and the updated `_headers` file. All four pages load `shell.js` for the same
+navigation, avatar button and account dialog. `script.js` fetches the session
+once per page and shares it with Chat and Forum through `zest:session`.
+All page CSPs allow Discord avatars.
 
 Run the login and chat checks from the website root:
 

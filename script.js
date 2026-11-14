@@ -1,3 +1,4 @@
+(() => {
 ﻿const MESSAGE = "Welcome to Zest Hub";
 const TYPE_SPEED = 90;
 const HOLD_TIME = 1200;
@@ -27,7 +28,7 @@ function typeLetter(i) {
   }
 }
 
-typeLetter(1);
+if (loader) typeLetter(1);
 
 const loginButton = document.getElementById("login-btn");
 const logoutButton = document.getElementById("logout-btn");
@@ -78,7 +79,7 @@ function showLicence(licence) {
   licenceCopy.hidden = !licence;
   licenceInfo.hidden = !licence;
   if (!licence) {
-    licenceStatus.textContent = "Enter your key to redeem it. Redeeming an unused key starts its timer.";
+    licenceStatus.textContent = "Enter your key. Redeeming starts the timer.";
     return;
   }
   const seconds = licence.durationSeconds;
@@ -90,7 +91,7 @@ function showLicence(licence) {
   document.getElementById("account-licence-duration").textContent = duration;
   document.getElementById("account-licence-activated").textContent = date(licence.activatedAt);
   document.getElementById("account-licence-expires").textContent = seconds === 253402300799 ? "Never" : date(licence.expiresAt);
-  licenceStatus.textContent = "This licence is linked to your Discord account.";
+  licenceStatus.textContent = "Saved to your account.";
 }
 
 async function loadLicence() {
@@ -173,33 +174,34 @@ discordAvatar.addEventListener("error", () => {
 accountButton.addEventListener("click", () => { selectAccountTab(accountTabs[0]); accountDialog.showModal(); });
 document.getElementById("account-close").addEventListener("click", () => accountDialog.close());
 
-downloadButton.addEventListener("click", () => {
+downloadButton?.addEventListener("click", () => {
   window.location.assign(`${loginService}/download-loader`);
 });
 
 loginButton.addEventListener("click", () => {
-  window.location.assign(`${loginService}/start`);
+  const page = ['Forum', 'Market', 'Chat'].find(name => window.location.pathname.split('/')[1] === name);
+  window.location.assign(`${loginService}/start${page ? '?next=' + encodeURIComponent('/' + page) : ''}`);
 });
 
 async function updateLogin() {
   try {
     const response = await fetch(`${loginService}/me`, { credentials: "include" });
     if (!response.ok) throw new Error("Login unavailable");
-    const { user, buyer, shoutboxWriter } = await response.json();
+    const { user, buyer, shoutboxWriter, marketOwner } = await response.json();
     if (accountUserId !== (user?.id || null)) resetLicence();
     accountUserId = user?.id || null;
-    window.dispatchEvent(new CustomEvent("zest:session", { detail: { user, shoutboxWriter } }));
+    window.dispatchEvent(new CustomEvent("zest:session", { detail: { user, shoutboxWriter, marketOwner } }));
     discordAvatar.hidden = !user?.avatarUrl;
     avatarFallback.hidden = Boolean(user?.avatarUrl);
     if (user?.avatarUrl) discordAvatar.src = user.avatarUrl;
     else discordAvatar.removeAttribute("src");
     accountButton.hidden = !user;
-    accountName.textContent = user ? `${user.name} | ${user.role || "Member"}` : "";
+    accountName.textContent = user?.name || "";
     if (!user && accountDialog.open) accountDialog.close();
     logoutButton.hidden = !user;
     loginButton.hidden = Boolean(user);
-    downloadButton.hidden = !buyer;
-    buyButton.hidden = Boolean(buyer);
+    if (downloadButton) downloadButton.hidden = !buyer;
+    if (buyButton) buyButton.hidden = Boolean(buyer);
     loginStatus.textContent = "";
   } catch {
     accountUserId = null;
@@ -207,8 +209,8 @@ async function updateLogin() {
     window.dispatchEvent(new CustomEvent("zest:session", { detail: { user: null } }));
     accountButton.hidden = true;
     if (accountDialog.open) accountDialog.close();
-    downloadButton.hidden = true;
-    buyButton.hidden = false;
+    if (downloadButton) downloadButton.hidden = true;
+    if (buyButton) buyButton.hidden = false;
     loginStatus.textContent = "Could not check Discord access. Please try again later.";
   }
 }
@@ -229,17 +231,5 @@ if (new URLSearchParams(window.location.search).get("login") === "failed") {
 }
 updateLogin();
 
-document.querySelectorAll("button, .button-link").forEach((button) => {
-  button.addEventListener("pointermove", (event) => {
-    if (event.pointerType === "touch") return;
-    const bounds = button.getBoundingClientRect();
-    if (!bounds.width) return;
-    const position = (event.clientX - bounds.left) / bounds.width;
-    const tilt = Math.max(-1, Math.min(1, position * 2 - 1)) * 6;
-    button.style.setProperty("--hover-tilt", `${tilt}deg`);
-  });
 
-  button.addEventListener("pointerleave", () => {
-    button.style.removeProperty("--hover-tilt");
-  });
-});
+})();

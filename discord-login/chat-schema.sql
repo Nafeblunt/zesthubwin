@@ -18,3 +18,9 @@ CREATE TABLE IF NOT EXISTS public_chat_messages (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS public_chat_messages_created ON public_chat_messages(created_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS chat_mutes (
+  discord_id TEXT PRIMARY KEY,
+  muted_until INTEGER NOT NULL,
+  moderator_id TEXT NOT NULL
+);

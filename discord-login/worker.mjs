@@ -4,6 +4,7 @@ import { PayPalSandbox } from '../payments/paypal-client.mjs';
 import { receiveWebhook } from '../payments/webhook.mjs';
 import { processCompletedEvent, processReversalEvent } from '../payments/webhook-processor.mjs';
 import { chatFilterError } from './chat-filter.mjs';
+import { handleAccountLicense } from './account-license.mjs';
 const REDIRECT = 'https://login.zesthub.win/callback';
 const SESSION = '__Host-zest_session';
 const STATE = '__Host-zest_oauth_state';
@@ -106,6 +107,20 @@ export default {
     if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
     let stage = 'request';
     try {
+      if (url.pathname === '/account/license') {
+        if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
+        if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: {
+          'Access-Control-Allow-Origin': SITE, 'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
+        } });
+        const token = cookies(request)[SESSION];
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        const session = await env.DB.prepare('SELECT discord_id FROM website_sessions WHERE session_hash=? AND expires_at>?')
+          .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
+        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        return await handleAccountLicense(request, session.discord_id, { db: env.DB, secret: env.ACCOUNT_VAULT_SECRET,
+          limiter: env.COMMUNITY_LIMIT, readBody: readCommunityBody, reply: (value, status) => json(request, value, status) });
+      }
       if (url.pathname === '/chat' || url.pathname === '/shoutbox') {
         const shoutbox = url.pathname === '/shoutbox';
         const table = shoutbox ? 'chat_messages' : 'public_chat_messages';

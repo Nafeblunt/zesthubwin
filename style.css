@@ -254,9 +254,9 @@ button:hover, .button-link:hover {
 .chat button.chat-name:hover { transform: none; text-shadow: none; color: #e0d3ff; }
 .chat button.chat-name:disabled { opacity: 1; cursor: text; color: #d0baff; }
 .chat button.chat-name:focus-visible { outline: 1px solid #a58aff; outline-offset: 3px; }
-.chat-user-menu { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(210px, calc(100vw - 16px)); padding: 10px; border: 1px solid #40394a; border-radius: 9px; background: #1b191f; color: #e0d9e8; font-family: inherit; text-align: left; box-shadow: 0 8px 28px #0006; }
+.chat-user-menu { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(210px, calc(100vw - 16px)); padding: 10px; border: 1px solid #303030; border-radius: 9px; background: #111112; color: #e0d9e8; font-family: inherit; text-align: left; box-shadow: 0 8px 28px #0006; }
 .chat-user-menu:popover-open { display: grid; gap: 6px; animation: chatMenuIn .14s ease both; }
-.chat-menu-name { margin: 2px 6px 8px; overflow-wrap: anywhere; font-size: 12px; color: #b4a6c6; }
+.chat-menu-name { margin: 2px 6px 8px; overflow-wrap: anywhere; font-size: 12px; color: #151515; }
 .chat-user-menu button { width: 100%; padding: 9px 8px; border-radius: 5px; text-align: left; font-size: 12px; color: #e0d9e8; }
 .chat-user-menu button:hover { background: #a58aff16; color: #eee; text-shadow: none; transform: none; }
 .chat-user-menu button:disabled { opacity: .4; cursor: not-allowed; }

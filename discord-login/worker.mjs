@@ -104,7 +104,7 @@ async function getDiscordAvatar(discordId, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured.' }, 503);
+    if (!env.DB || !env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return json(request, { error: 'Login is not configured' }, 503);
     let stage = 'request';
     try {
       if (url.pathname === '/account/license') {
@@ -114,10 +114,10 @@ export default {
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
         } });
         const token = cookies(request)[SESSION];
-        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first' }, 401);
         const session = await env.DB.prepare('SELECT discord_id FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
-        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!session) return json(request, { error: 'Sign in with Discord first' }, 401);
         return await handleAccountLicense(request, session.discord_id, { db: env.DB, secret: env.ACCOUNT_VAULT_SECRET,
           limiter: env.COMMUNITY_LIMIT, readBody: readCommunityBody, reply: (value, status) => json(request, value, status) });
       }
@@ -148,14 +148,14 @@ export default {
         if (!(request.method === 'POST' && (!messageId || muteAction)) && !(request.method === 'DELETE' && messageId))
           return json(request, { error: 'Method not allowed' }, 405);
         const session = await getSession();
-        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!session) return json(request, { error: 'Sign in with Discord first' }, 401);
         if ((messageId || shoutbox) && !(await getDiscordAccess(session.discord_id, env)).shoutboxWriter)
-          return json(request, { error: messageId ? 'You cannot moderate chat.' : 'Only Dev and Zest Owner can post here.' }, 403);
+          return json(request, { error: messageId ? 'You cannot moderate chat' : 'Only Dev and Zest Owner can post here' }, 403);
         if (!env.COMMUNITY_LIMIT || !(await env.COMMUNITY_LIMIT.limit({ key: session.discord_id })).success)
-          return json(request, { error: 'Too many messages. Please wait a moment.' }, 429);
+          return json(request, { error: 'Too many messages Please wait a moment' }, 429);
         if (messageId) {
           const message = await env.DB.prepare(`SELECT author_id FROM ${table} WHERE id=?`).bind(messageId).first();
-          if (!message) return json(request, { error: 'Message not found.' }, 404);
+          if (!message) return json(request, { error: 'Message not found' }, 404);
           if (!muteAction) {
             await env.DB.prepare(`DELETE FROM ${table} WHERE id=?`).bind(messageId).run();
             return json(request, { ok: true });
@@ -164,10 +164,10 @@ export default {
             await env.DB.prepare('DELETE FROM chat_mutes WHERE discord_id=?').bind(message.author_id).run();
             return json(request, { mutedUntil: 0 });
           }
-          if (message.author_id === session.discord_id) return json(request, { error: 'You cannot mute yourself.' }, 400);
+          if (message.author_id === session.discord_id) return json(request, { error: 'You cannot mute yourself' }, 400);
           let data;
-          try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Choose a mute duration.' }, 400); }
-          if (![600, 3600, 86400].includes(data?.duration)) return json(request, { error: 'Choose a mute duration.' }, 400);
+          try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Choose a mute duration' }, 400); }
+          if (![600, 3600, 86400].includes(data?.duration)) return json(request, { error: 'Choose a mute duration' }, 400);
           const mutedUntil = Math.floor(Date.now() / 1000) + data.duration;
           await env.DB.prepare(`INSERT INTO chat_mutes(discord_id,muted_until,moderator_id) VALUES (?,?,?)
             ON CONFLICT(discord_id) DO UPDATE SET muted_until=excluded.muted_until,moderator_id=excluded.moderator_id`)
@@ -175,11 +175,11 @@ export default {
           return json(request, { mutedUntil });
         }
         const mute = await env.DB.prepare('SELECT muted_until FROM chat_mutes WHERE discord_id=?').bind(session.discord_id).first();
-        if (mute?.muted_until > Math.floor(Date.now() / 1000)) return json(request, { error: 'You are muted.', mutedUntil: mute.muted_until }, 403);
+        if (mute?.muted_until > Math.floor(Date.now() / 1000)) return json(request, { error: 'You are muted', mutedUntil: mute.muted_until }, 403);
         let data;
-        try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid message.' }, 400); }
+        try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid message' }, 400); }
         const body = typeof data?.body === 'string' ? data.body.trim() : '';
-        if (!body || body.length > 280) return json(request, { error: 'Enter a message between 1 and 280 characters.' }, 400);
+        if (!body || body.length > 280) return json(request, { error: 'Enter a message between 1 and 280 characters' }, 400);
         const filterError = chatFilterError(body);
         if (filterError) return json(request, { error: filterError }, 400);
         const message = { id: random().slice(0, 24), body, author_id: session.discord_id,
@@ -202,29 +202,29 @@ export default {
         }
         if (!((request.method === 'POST' && !postId) || (request.method === 'DELETE' && postId))) return json(request, { error: 'Method not allowed' }, 405);
         const token = cookies(request)[SESSION];
-        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first' }, 401);
         const session = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now()/1000)).first();
-        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!session) return json(request, { error: 'Sign in with Discord first' }, 401);
         if (!env.COMMUNITY_LIMIT || !(await env.COMMUNITY_LIMIT.limit({ key: session.discord_id })).success)
-          return json(request, { error: 'Please try again later.' }, 429);
+          return json(request, { error: 'Please try again later' }, 429);
         if (request.method === 'DELETE') {
           const post = await env.DB.prepare('SELECT author_id FROM community_posts WHERE id=? AND kind=?').bind(postId, kind).first();
-          if (!post) return json(request, { error: 'Post not found.' }, 404);
+          if (!post) return json(request, { error: 'Post not found' }, 404);
           if (post.author_id !== session.discord_id && !await hasMarketOwnerRole(session.discord_id, env))
-            return json(request, { error: 'Not allowed.' }, 403);
+            return json(request, { error: 'Not allowed' }, 403);
           await env.DB.prepare('DELETE FROM community_posts WHERE id=? AND kind=?').bind(postId, kind).run();
           return json(request, { ok: true });
         }
         if (kind === 'market') {
           if (!await hasMarketOwnerRole(session.discord_id, env))
-            return json(request, { error: 'Zest Owner role required.' }, 403);
+            return json(request, { error: 'Zest Owner role required' }, 403);
         }
         let data;
-        try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid post.' }, 400); }
+        try { data = await readCommunityBody(request); } catch { return json(request, { error: 'Invalid post' }, 400); }
         const title = typeof data?.title === 'string' ? data.title.trim() : '';
         const body = typeof data?.body === 'string' ? data.body.trim() : '';
-        if (!title || title.length > 100 || !body || body.length > 4000) return json(request, { error: 'Enter a title and message within the limits.' }, 400);
+        if (!title || title.length > 100 || !body || body.length > 4000) return json(request, { error: 'Enter a title and message within the limits' }, 400);
         const id = random().slice(0, 24), created = Math.floor(Date.now()/1000);
         await env.DB.prepare('INSERT INTO community_posts(id,kind,title,body,author_id,author_name,created_at) VALUES (?,?,?,?,?,?,?)')
           .bind(id, kind, title, body, session.discord_id, session.username, created).run();
@@ -233,7 +233,7 @@ export default {
       if (url.pathname === '/sandbox/payments/webhook') {
         if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_WEBHOOK_ID ||
             !env.PAYPAL_SANDBOX_CLIENT_ID || !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID)
-          return json(request, { error: 'Sandbox webhook is not configured.' }, 503);
+          return json(request, { error: 'Sandbox webhook is not configured' }, 503);
         const paypal = new PayPalSandbox({ clientId: env.PAYPAL_SANDBOX_CLIENT_ID,
           clientSecret: env.PAYPAL_SANDBOX_CLIENT_SECRET, merchantId: env.PAYPAL_SANDBOX_MERCHANT_ID });
         return receiveWebhook(request, { db: env.SANDBOX_DB, paypal, webhookId: env.PAYPAL_SANDBOX_WEBHOOK_ID });
@@ -241,13 +241,13 @@ export default {
       if (url.pathname.startsWith('/sandbox/payments/')) {
         if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_CLIENT_ID ||
             !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID || !env.SANDBOX_VAULT_SECRET || !env.SANDBOX_LIMIT)
-          return json(request, { error: 'Sandbox checkout is not configured.' }, 503);
+          return json(request, { error: 'Sandbox checkout is not configured' }, 503);
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
         const token = cookies(request)[SESSION];
-        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first' }, 401);
         const session = await env.DB.prepare('SELECT discord_id FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
-        if (!session) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!session) return json(request, { error: 'Sign in with Discord first' }, 401);
         const paypal = new PayPalSandbox({ clientId: env.PAYPAL_SANDBOX_CLIENT_ID,
           clientSecret: env.PAYPAL_SANDBOX_CLIENT_SECRET, merchantId: env.PAYPAL_SANDBOX_MERCHANT_ID });
         return handleSandboxPayment(request, session.discord_id, { db: env.SANDBOX_DB, paypal,
@@ -302,15 +302,15 @@ export default {
         return redirect(SITE + destination, [clear, cookie(RETURN, '', 0), cookie(SESSION, session, TIMEOUT)]);
       }
       if (url.pathname === '/download-loader' && request.method === 'GET') {
-        if (!env.LOADER_BUCKET) return json(request, { error: 'Download is not configured.' }, 503);
+        if (!env.LOADER_BUCKET) return json(request, { error: 'Download is not configured' }, 503);
         const token = cookies(request)[SESSION];
-        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first.' }, 401);
+        if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first' }, 401);
         const row = await env.DB.prepare('SELECT discord_id FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
-        if (!row) return json(request, { error: 'Sign in with Discord first.' }, 401);
-        if (!await hasBuyerAccess(row.discord_id, env)) return json(request, { error: 'Buyer role required.' }, 403);
+        if (!row) return json(request, { error: 'Sign in with Discord first' }, 401);
+        if (!await hasBuyerAccess(row.discord_id, env)) return json(request, { error: 'Buyer role required' }, 403);
         const object = await env.LOADER_BUCKET.get('ZestHub-Loader.exe');
-        if (!object) return json(request, { error: 'The loader has not been uploaded yet.' }, 404);
+        if (!object) return json(request, { error: 'The loader has not been uploaded yet' }, 404);
         const downloadName = /^[A-Za-z]{6,7}\.exe$/.test(object.customMetadata?.downloadName || '')
           ? object.customMetadata.downloadName : 'ZestHub-Loader.exe';
         return new Response(object.body, { headers: { 'Content-Type': 'application/octet-stream',
@@ -337,7 +337,7 @@ export default {
     } catch (error) {
       console.error('Discord login failed at', stage, 'error type:', error?.name || 'Error');
       if (url.pathname === '/callback') return redirect(`${SITE}/?login=failed`, [cookie(STATE, '', 0)]);
-      return json(request, { error: 'Login temporarily unavailable.' }, 503);
+      return json(request, { error: 'Login temporarily unavailable' }, 503);
     }
   },
   async scheduled(_event, env) {

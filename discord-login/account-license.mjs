@@ -20,21 +20,21 @@ async function ownedLicense(db, secret, discordId, licenseId = null) {
 }
 
 export async function handleAccountLicense(request, discordId, { db, secret, limiter, readBody, reply }) {
-  if (!/^[a-f0-9]{64}$/i.test(secret || '')) return reply({ error: 'Licence service is temporarily unavailable.' }, 503);
+  if (!/^[a-f0-9]{64}$/i.test(secret || '')) return reply({ error: 'Licence service is temporarily unavailable' }, 503);
   if (request.method === 'GET') return reply({ license: await ownedLicense(db, secret, discordId) });
-  if (request.method !== 'POST') return reply({ error: 'Method not allowed.' }, 405);
+  if (request.method !== 'POST') return reply({ error: 'Method not allowed' }, 405);
   if (!limiter || !(await limiter.limit({ key: `account-license:${discordId}` })).success)
-    return reply({ error: 'Too many attempts. Please wait a moment.' }, 429);
+    return reply({ error: 'Too many attempts Please wait a moment' }, 429);
   let data;
-  try { data = await readBody(request); } catch { return reply({ error: 'Enter a valid ZEST licence key.' }, 400); }
+  try { data = await readBody(request); } catch { return reply({ error: 'Enter a valid ZEST licence key' }, 400); }
   const key = typeof data?.key === 'string' ? data.key.trim().toUpperCase() : '';
-  if (!/^ZEST-[A-F0-9]{48}$/.test(key)) return reply({ error: 'Enter a valid ZEST licence key.' }, 400);
+  if (!/^ZEST-[A-F0-9]{48}$/.test(key)) return reply({ error: 'Enter a valid ZEST licence key' }, 400);
   const keyHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))), n => n.toString(16).padStart(2, '0')).join('');
   const now = Math.floor(Date.now() / 1000);
   const license = await db.prepare(`SELECT l.id FROM licenses l WHERE l.key_hash=? AND l.revoked=0
     AND (l.expires_at IS NULL OR l.expires_at>?)
     AND NOT EXISTS(SELECT 1 FROM banned_devices b WHERE b.hwid_hash=l.hwid_hash)`).bind(keyHash, now).first();
-  if (!license) return reply({ error: 'That licence is invalid, expired, revoked, or unavailable.' }, 400);
+  if (!license) return reply({ error: 'That licence is invalid, expired, revoked, or unavailable' }, 400);
   const cipher = await sealKey(secret, `${discordId}:${license.id}`, key);
   // The primary key prevents two Discord accounts from redeeming the same key.
   // Linking and starting the timer commit together; repeat redemption keeps expiry.
@@ -50,6 +50,6 @@ export async function handleAccountLicense(request, discordId, { db, secret, lim
       .bind(now, now, license.id, now, discordId)
   ]);
   const owned = await ownedLicense(db, secret, discordId, license.id);
-  if (!owned) return reply({ error: 'That licence has already been redeemed or is unavailable.' }, 409);
+  if (!owned) return reply({ error: 'That licence has already been redeemed or is unavailable' }, 409);
   return reply({ license: owned });
 }

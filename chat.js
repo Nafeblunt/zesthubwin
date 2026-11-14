@@ -105,7 +105,7 @@
       const data = await response.json();
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) { shoutboxWriter = false; updateNameButtons(); closeMenu(); }
-        throw new Error(data.error || 'Could not save that change.');
+        throw new Error(data.error || 'Could not save that change');
       }
       requestVersion++;
       if (removing) {
@@ -113,9 +113,9 @@
         render(Array.from(rowData.values()).filter(message => message.id !== id));
       } else {
         for (const message of rowData.values()) if (message.author_id === row.author_id) message.author_muted_until = data.mutedUntil;
-        menuStatus.textContent = unmuting ? 'Unmuted.' : 'Muted.';
+        menuStatus.textContent = unmuting ? 'Unmuted' : 'Muted';
       }
-    } catch (error) { menuStatus.textContent = error.message || 'Could not save that change.'; }
+    } catch (error) { menuStatus.textContent = error.message || 'Could not save that change'; }
     finally { moderating = false; if (selectedId === id) updateMenu(); }
   });
 
@@ -125,12 +125,12 @@
     form.hidden = !canSend || muted;
     input.disabled = !canSend || muted;
     input.readOnly = sending;
-    input.placeholder = user ? 'Message…' : 'Log in to chat';
+    input.placeholder = user ? 'Message' : 'Log in to chat';
     send.disabled = !canSend || muted || sending || !input.value.trim();
-    send.textContent = sending ? 'Sending…' : 'Send';
+    send.textContent = sending ? 'Sending' : 'Send';
     count.textContent = `${input.value.length}/280`;
     if (muted) {
-      status.textContent = `Muted until ${new Date(mutedUntil * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+      status.textContent = `Muted until ${new Date(mutedUntil * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       status.dataset.muted = 'true';
     } else if (status.dataset.muted) {
       status.textContent = '';
@@ -149,7 +149,7 @@
       if (!messages.querySelector('.chat-empty') || !loaded) {
         const empty = document.createElement('p');
         empty.className = 'chat-empty';
-        empty.textContent = 'No messages yet.';
+        empty.textContent = 'No messages yet';
         messages.replaceChildren(empty);
       }
       loaded = true;
@@ -208,7 +208,7 @@
     const version = requestVersion;
     try {
       const response = await fetch(api, { credentials: 'include' });
-      if (!response.ok) throw new Error('Could not load chat. Retrying shortly.');
+      if (!response.ok) throw new Error('Could not load chat Retrying shortly');
       const data = await response.json();
       if (version !== requestVersion) return;
       const wasMuted = mutedUntil > Date.now() / 1000;
@@ -217,21 +217,21 @@
       render(data.messages);
       updateComposer();
       if (status.dataset.error === 'load') {
-        status.textContent = publicChat && !user ? 'Log in to chat.' : '';
+        status.textContent = publicChat && !user ? 'Log in to chat' : '';
         delete status.dataset.error;
       }
     } catch (error) {
       if (version !== requestVersion) return;
-      status.textContent = error.message || 'Could not load chat. Retrying shortly.';
+      status.textContent = error.message || 'Could not load chat Retrying shortly';
       status.dataset.error = 'load';
-      if (!loaded) messages.querySelector('.chat-empty').textContent = 'Chat is temporarily unavailable.';
+      if (!loaded) messages.querySelector('.chat-empty').textContent = 'Chat is temporarily unavailable';
     } finally { loading = false; }
   }
 
   window.addEventListener('zest:session', event => {
     user = event.detail?.user || null;
     shoutboxWriter = event.detail?.shoutboxWriter === true;
-    status.textContent = publicChat && !user ? 'Log in to chat.' : '';
+    status.textContent = publicChat && !user ? 'Log in to chat' : '';
     delete status.dataset.error;
     updateComposer();
     updateNameButtons();
@@ -254,7 +254,7 @@
         if (response.status === 401) user = null;
         if (data.mutedUntil) mutedUntil = data.mutedUntil;
         else if (response.status === 403 && !publicChat) shoutboxWriter = false;
-        throw new Error(data.error || 'Could not send your message. Please try again.');
+        throw new Error(data.error || 'Could not send your message Please try again');
       }
       requestVersion++;
       // Keep existing nodes so refreshing never replays the whole conversation.
@@ -263,7 +263,7 @@
       render([...current, row].slice(-100), true);
       input.value = '';
       input.focus();
-    } catch (error) { status.textContent = error.message || 'Could not send your message. Please try again.'; }
+    } catch (error) { status.textContent = error.message || 'Could not send your message Please try again'; }
     finally { sending = false; updateComposer(); }
   });
 

@@ -79,34 +79,34 @@ function showLicence(licence) {
   licenceCopy.hidden = !licence;
   licenceInfo.hidden = !licence;
   if (!licence) {
-    licenceStatus.textContent = "Enter your key. Redeeming starts the timer.";
+    licenceStatus.textContent = "Enter your key Redeeming starts the timer";
     return;
   }
   const seconds = licence.durationSeconds;
   const duration = seconds === 253402300799 ? "Lifetime" : seconds % 86400 === 0
     ? `${seconds / 86400} day${seconds === 86400 ? "" : "s"}` : seconds % 3600 === 0
     ? `${seconds / 3600} hour${seconds === 3600 ? "" : "s"}` : `${Math.ceil(seconds / 60)} minutes`;
-  const date = value => value === null ? "Not activated" : new Date(value * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  const date = value => value === null ? "Not activated" : new Date(value * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }).replaceAll('.', '');
   document.getElementById("account-licence-state").textContent = licence.status;
   document.getElementById("account-licence-duration").textContent = duration;
   document.getElementById("account-licence-activated").textContent = date(licence.activatedAt);
   document.getElementById("account-licence-expires").textContent = seconds === 253402300799 ? "Never" : date(licence.expiresAt);
-  licenceStatus.textContent = "Saved to your account.";
+  licenceStatus.textContent = "Saved to your account";
 }
 
 async function loadLicence() {
   if (!accountUserId || licenceLoaded || licenceBusy) return;
   licenceBusy = true;
   const request = ++licenceRequest;
-  licenceStatus.textContent = "Loading your licence…";
+  licenceStatus.textContent = "Loading your licence";
   try {
     const response = await fetch(`${loginService}/account/license`, { credentials: "include" });
     const data = await response.json();
     if (request !== licenceRequest) return;
-    if (!response.ok) throw new Error(data.error || "Could not load your licence. Reopen this tab to retry.");
+    if (!response.ok) throw new Error(data.error || "Could not load your licence Reopen this tab to retry");
     showLicence(data.license);
   } catch (error) {
-    if (request === licenceRequest) licenceStatus.textContent = error.message || "Could not load your licence. Reopen this tab to retry.";
+    if (request === licenceRequest) licenceStatus.textContent = error.message || "Could not load your licence Reopen this tab to retry";
   } finally { if (request === licenceRequest) licenceBusy = false; }
 }
 
@@ -139,20 +139,20 @@ licenceForm.addEventListener("submit", async event => {
   const request = ++licenceRequest;
   licenceInput.readOnly = true;
   licenceRedeem.disabled = true;
-  licenceRedeem.textContent = "Redeeming…";
+  licenceRedeem.textContent = "Redeeming";
   licenceStatus.textContent = "";
   try {
     const response = await fetch(`${loginService}/account/license`, { method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: licenceInput.value.trim() }) });
     const data = await response.json();
     if (request !== licenceRequest) return;
-    if (!response.ok) throw new Error(data.error || "Could not redeem that licence. Please try again.");
+    if (!response.ok) throw new Error(data.error || "Could not redeem that licence Please try again");
     showLicence(data.license);
   } catch (error) {
     if (request === licenceRequest) {
       licenceInput.readOnly = false;
       licenceRedeem.disabled = !licenceInput.value.trim();
-      licenceStatus.textContent = error.message || "Could not redeem that licence. Please try again.";
+      licenceStatus.textContent = error.message || "Could not redeem that licence Please try again";
     }
   } finally {
     if (request === licenceRequest) { licenceBusy = false; licenceRedeem.textContent = "Redeem licence"; }
@@ -162,8 +162,8 @@ licenceCopy.addEventListener("click", async () => {
   const request = licenceRequest;
   try {
     await navigator.clipboard.writeText(licenceInput.value);
-    if (request === licenceRequest) licenceStatus.textContent = "Licence key copied.";
-  } catch { if (request === licenceRequest) licenceStatus.textContent = "Select the key and copy it manually."; }
+    if (request === licenceRequest) licenceStatus.textContent = "Licence key copied";
+  } catch { if (request === licenceRequest) licenceStatus.textContent = "Select the key and copy it manually"; }
 });
 
 discordAvatar.addEventListener("error", () => {
@@ -211,7 +211,7 @@ async function updateLogin() {
     if (accountDialog.open) accountDialog.close();
     if (downloadButton) downloadButton.hidden = true;
     if (buyButton) buyButton.hidden = false;
-    loginStatus.textContent = "Could not check Discord access. Please try again later.";
+    loginStatus.textContent = "Could not check Discord access Please try again later";
   }
 }
 
@@ -221,12 +221,12 @@ logoutButton.addEventListener("click", async () => {
     if (!response.ok) throw new Error("Logout failed");
     await updateLogin();
   } catch {
-    loginStatus.textContent = "Could not log out. Please try again.";
+    loginStatus.textContent = "Could not log out Please try again";
   }
 });
 
 if (new URLSearchParams(window.location.search).get("login") === "failed") {
-  loginStatus.textContent = "Discord login was cancelled or failed. Please try again.";
+  loginStatus.textContent = "Discord login was cancelled or failed Please try again";
   window.history.replaceState({}, "", window.location.pathname);
 }
 updateLogin();

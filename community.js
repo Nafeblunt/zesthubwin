@@ -11,7 +11,7 @@ let cachedPosts = [];
 
 async function loadPosts() {
   const response = await fetch(`${api}/community/${kind}`, { credentials: 'include' });
-  if (!response.ok) throw new Error('Could not load posts. Please try again later.');
+  if (!response.ok) throw new Error('Could not load posts Please try again later');
   const data = await response.json();
   cachedPosts = data.posts;
   renderPosts();
@@ -22,7 +22,7 @@ function renderPosts() {
   if (!cachedPosts.length) {
     const empty = document.createElement('p');
     empty.className = 'community-empty';
-    empty.textContent = kind === 'forum' ? 'No posts yet.' : 'No listings yet.';
+    empty.textContent = kind === 'forum' ? 'No posts yet' : 'No listings yet';
     posts.append(empty);
     return;
   }
@@ -40,8 +40,8 @@ function renderPosts() {
         remove.disabled = true;
         try {
           const response = await fetch(`${api}/community/${kind}/${post.id}`, { method: 'DELETE', credentials: 'include' });
-          if (!response.ok) throw new Error('Could not delete this post.');
-          await loadPosts(); status.textContent = 'Deleted.';
+          if (!response.ok) throw new Error('Could not delete this post');
+          await loadPosts(); status.textContent = 'Deleted';
         } catch (error) { status.textContent = error.message; remove.disabled = false; }
       });
       article.append(remove);
@@ -59,17 +59,17 @@ window.addEventListener('zest:session', event => {
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const button = form.querySelector('button[type="submit"]');
-  button.disabled = true; status.textContent = 'Posting…';
+  button.disabled = true; status.textContent = 'Posting';
   try {
     const response = await fetch(`${api}/community/${kind}`, { method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('post-title').value, body: document.getElementById('post-body').value }) });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Could not post.');
-    form.reset(); await loadPosts(); status.textContent = 'Posted.';
-  } catch (error) { status.textContent = error.message || 'Could not post.'; }
+    if (!response.ok) throw new Error(data.error || 'Could not post');
+    form.reset(); await loadPosts(); status.textContent = 'Posted';
+  } catch (error) { status.textContent = error.message || 'Could not post'; }
   finally { button.disabled = false; }
 });
 
-loadPosts().catch(error => { status.textContent = error.message || 'Could not load posts.'; });
+loadPosts().catch(error => { status.textContent = error.message || 'Could not load posts'; });
 
 })();

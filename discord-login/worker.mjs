@@ -5,6 +5,7 @@ import { receiveWebhook } from '../payments/webhook.mjs';
 import { processCompletedEvent, processReversalEvent } from '../payments/webhook-processor.mjs';
 import { chatFilterError } from './chat-filter.mjs';
 import { handleAccountLicense } from './account-license.mjs';
+import { syncRedeemedBuyerRole, retryRedeemedBuyerRoles } from './buyer-role.mjs';
 const REDIRECT = 'https://login.zesthub.win/callback';
 const SESSION = '__Host-zest_session';
 const STATE = '__Host-zest_oauth_state';
@@ -119,6 +120,7 @@ export default {
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
         if (!session) return json(request, { error: 'Sign in with Discord first' }, 401);
         return await handleAccountLicense(request, session.discord_id, { db: env.DB, secret: env.ACCOUNT_VAULT_SECRET, discordUsername: session.username,
+          syncBuyer: () => syncRedeemedBuyerRole(env, session.discord_id),
           limiter: env.COMMUNITY_LIMIT, readBody: readCommunityBody, reply: (value, status) => json(request, value, status) });
       }
       const chatRoute = /^\/(chat|shoutbox)(?:\/([a-f0-9]{24})(\/mute)?)?$/.exec(url.pathname);
@@ -341,6 +343,8 @@ export default {
     }
   },
   async scheduled(_event, env) {
+    try { await retryRedeemedBuyerRoles(env); }
+    catch { console.error('Website buyer roles require reconciliation'); }
     if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_WEBHOOK_ID ||
         !env.PAYPAL_SANDBOX_CLIENT_ID || !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID || !env.SANDBOX_VAULT_SECRET) return;
     const paypal = new PayPalSandbox({ clientId: env.PAYPAL_SANDBOX_CLIENT_ID,

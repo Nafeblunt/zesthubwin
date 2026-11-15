@@ -27,10 +27,27 @@ Discord ID. Fresh installations use `account-license-schema.sql` instead.
 
 Redeeming an unused key starts its timer. Already-activated keys keep their
 activation and expiry. Redemption does not bind or reset the loader username or
-device, grant Discord roles, or alter existing payment processing. Invalid,
+device or alter existing payment processing. Invalid,
 expired, revoked and device-banned keys cannot be redeemed. Status is read from
 the licence record each time the tab opens. Keys redeemed earlier remain owned
 if another licence is subsequently redeemed.
+
+After redemption, the existing Discord bot adds Buyer and then removes Member
+from the authenticated Discord user in the configured server. Other roles are
+left intact. The ownership/timer transaction also inserts a durable task in
+`website_buyer_role_queue`, so Discord failures never discard a redeemed key.
+The response reports `roleSync: "synced"` or `"pending"`. A pending update is
+retried by the login Worker's five-minute cron, independently of sandbox payment
+settings. Missing members and permission failures retry after an hour; transient
+failures after five minutes, and rate limits respect Retry-After. Every attempt
+rechecks for an active, unrevoked, non-device-banned website redemption.
+
+Apply `buyer-role-schema.sql` before deploying this change. It creates the queue
+and enqueues existing active website redemptions. Configure `DISCORD_MEMBER_ROLE_ID`
+alongside the existing Buyer role, guild and bot token. Buyer and Member must be
+distinct roles below the bot's highest role, and the bot needs Manage Roles.
+This change does not automatically remove Buyer when a licence expires or is
+revoked, since the role can also be assigned by server staff or another purchase.
 
 `website_account_licenses` stores the ownership link and a separately encrypted
 copy of the submitted key. AES-GCM associated data binds that copy to the

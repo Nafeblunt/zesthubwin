@@ -118,6 +118,11 @@ licenceForm.addEventListener("submit", async event => {
     if (request !== licenceRequest) return;
     if (!response.ok) throw new Error(data.error || "Could not redeem that licence Please try again");
     showLicence(data.license);
+    if (data.roleSync === 'pending') licenceStatus.textContent = "Key redeemed — Discord role update pending";
+    if (data.roleSync === 'synced') {
+      if (downloadButton) downloadButton.hidden = false;
+      if (buyButton) buyButton.hidden = true;
+    }
   } catch (error) {
     if (request === licenceRequest) {
       licenceInput.readOnly = false;

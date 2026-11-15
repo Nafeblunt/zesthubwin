@@ -19,7 +19,7 @@ async function ownedLicense(db, secret, discordId, licenseId = null) {
   };
 }
 
-export async function handleAccountLicense(request, discordId, { db, secret, limiter, readBody, reply, discordUsername }) {
+export async function handleAccountLicense(request, discordId, { db, secret, limiter, readBody, reply, discordUsername, syncBuyer }) {
   if (!/^[a-f0-9]{64}$/i.test(secret || '')) return reply({ error: 'Licence service is temporarily unavailable' }, 503);
   if (request.method === 'GET') return reply({ license: await ownedLicense(db, secret, discordId) });
   if (request.method !== 'POST') return reply({ error: 'Method not allowed' }, 405);
@@ -49,9 +49,15 @@ export async function handleAccountLicense(request, discordId, { db, secret, lim
       expires_at=COALESCE(expires_at,CASE WHEN duration_seconds=253402300799 THEN 253402300799 ELSE ?+duration_seconds END)
       WHERE id=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)
       AND EXISTS(SELECT 1 FROM website_account_licenses a WHERE a.license_id=licenses.id AND a.discord_id=?)`)
-      .bind(now, now, license.id, now, discordId)
+      .bind(now, now, license.id, now, discordId),
+    db.prepare(`INSERT OR IGNORE INTO website_buyer_role_queue(discord_id)
+      SELECT a.discord_id FROM website_account_licenses a JOIN licenses l ON l.id=a.license_id
+      WHERE a.license_id=? AND a.discord_id=? AND l.revoked=0 AND (l.expires_at IS NULL OR l.expires_at>?)
+      AND NOT EXISTS(SELECT 1 FROM banned_devices b WHERE b.hwid_hash=l.hwid_hash)`)
+      .bind(license.id, discordId, now)
   ]);
   const owned = await ownedLicense(db, secret, discordId, license.id);
   if (!owned) return reply({ error: 'That licence has already been redeemed or is unavailable' }, 409);
-  return reply({ license: owned });
+  const roleSync = (await syncBuyer()).status;
+  return reply({ license: owned, roleSync });
 }

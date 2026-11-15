@@ -15,6 +15,7 @@ async function setup(t) {
   sql.exec(readFileSync(new URL('../private-admin/schema.sql', import.meta.url), 'utf8'));
   sql.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
   sql.exec(readFileSync(new URL('./account-license-schema.sql', import.meta.url), 'utf8'));
+  sql.exec(readFileSync(new URL('./buyer-role-schema.sql', import.meta.url), 'utf8'));
   for (const [sessionToken, id] of [[token, '111111111111111111'], [otherToken, '222222222222222222']]) {
     sql.prepare('INSERT INTO website_sessions VALUES (?,?,?,?)').run(await hash(sessionToken), id, 'Member', Math.floor(Date.now()/1000)+3600);
   }
@@ -154,4 +155,114 @@ test('existing redemptions recover names by Discord ID, without guessing from lo
   const unknown = sql.prepare("SELECT * FROM website_account_licenses WHERE license_id='unknown'").get();
   assert.equal(unknown.discord_id, '222222222222222222');
   assert.equal(unknown.discord_username, null);
+});
+
+function discordRoles(t, env, { roles = ['333333333333333333', '555555555555555555'], fail = () => null } = {}) {
+  Object.assign(env, { DISCORD_GUILD_ID: '666666666666666666', DISCORD_BUYER_ROLE_ID: '444444444444444444',
+    DISCORD_MEMBER_ROLE_ID: '333333333333333333', DISCORD_BOT_TOKEN: 'test-bot-token' });
+  const assigned = new Set(roles), calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, config) => {
+    const method = config.method || 'GET';
+    assert.equal(config.headers.Authorization, 'Bot test-bot-token');
+    assert.ok(String(url).startsWith('https://discord.com/api/v10/guilds/666666666666666666/members/111111111111111111'));
+    calls.push({ url: String(url), method });
+    const failure = fail(method, String(url));
+    if (failure) return failure;
+    if (method === 'GET') return Response.json({ user: { id: '111111111111111111', bot: false }, roles: [...assigned] });
+    const role = String(url).split('/').at(-1);
+    if (method === 'PUT') { assert.equal(role, '444444444444444444'); assigned.add(role); }
+    else { assert.equal(method, 'DELETE'); assert.equal(role, '333333333333333333'); assigned.delete(role); }
+    return new Response(null, { status: 204 });
+  });
+  return { assigned, calls };
+}
+
+test('redemption adds Buyer then removes Member using the signed-in Discord identity', async t => {
+  const { env, sql } = await setup(t);
+  const { assigned, calls } = discordRoles(t, env);
+  const response = await worker.fetch(request({ method: 'POST', body: { key, discord_id: '222222222222222222', buyerRoleId: '555555555555555555' } }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls.map(call => call.method), ['GET', 'PUT', 'DELETE']);
+  assert.deepEqual([...assigned].sort(), ['444444444444444444', '555555555555555555']);
+  assert.equal((await response.json()).roleSync, 'synced');
+  assert.equal(sql.prepare('SELECT count(*) AS count FROM website_buyer_role_queue').get().count, 0);
+});
+
+test('failed Buyer grant keeps Member and the saved licence, then cron retries even with payments disabled', async t => {
+  const { env, sql } = await setup(t);
+  let unavailable = true;
+  const { assigned, calls } = discordRoles(t, env, { fail: method => unavailable && method === 'PUT' ? new Response(null, { status: 503 }) : null });
+  const response = await worker.fetch(request({ method: 'POST', body: { key } }), env);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).roleSync, 'pending');
+  assert.deepEqual(calls.map(call => call.method), ['GET', 'PUT']);
+  assert.ok(assigned.has('333333333333333333'));
+  assert.equal(sql.prepare('SELECT count(*) AS count FROM website_account_licenses').get().count, 1);
+  assert.equal(sql.prepare('SELECT attempts FROM website_buyer_role_queue').get().attempts, 1);
+  unavailable = false;
+  sql.exec('UPDATE website_buyer_role_queue SET next_attempt_at=0');
+  await worker.scheduled({}, env);
+  assert.ok(assigned.has('444444444444444444'));
+  assert.ok(!assigned.has('333333333333333333'));
+  assert.equal(sql.prepare('SELECT count(*) AS count FROM website_buyer_role_queue').get().count, 0);
+});
+
+test('existing Buyer still loses Member and unrelated roles remain untouched', async t => {
+  const { env } = await setup(t);
+  const { assigned, calls } = discordRoles(t, env, { roles: ['333333333333333333', '444444444444444444', '555555555555555555'] });
+  await worker.fetch(request({ method: 'POST', body: { key } }), env);
+  assert.deepEqual(calls.map(call => call.method), ['GET', 'DELETE']);
+  assert.deepEqual([...assigned].sort(), ['444444444444444444', '555555555555555555']);
+});
+
+test('invalid keys and another account cannot trigger role changes', async t => {
+  const { env } = await setup(t);
+  const { calls } = discordRoles(t, env);
+  assert.equal((await worker.fetch(request({ method: 'POST', body: { key: 'invalid' } }), env)).status, 400);
+  assert.equal(calls.length, 0);
+  await worker.fetch(request({ method: 'POST', body: { key } }), env);
+  calls.length = 0;
+  assert.equal((await worker.fetch(request({ method: 'POST', session: otherToken, body: { key } }), env)).status, 409);
+  assert.equal(calls.length, 0);
+});
+
+test('pending grants recheck entitlement after revocation before making any Discord requests', async t => {
+  const { env, sql } = await setup(t);
+  const { calls } = discordRoles(t, env, { fail: () => new Response(null, { status: 503 }) });
+  await worker.fetch(request({ method: 'POST', body: { key } }), env);
+  sql.exec('UPDATE licenses SET revoked=1; UPDATE website_buyer_role_queue SET next_attempt_at=0');
+  calls.length = 0;
+  await worker.scheduled({}, env);
+  assert.equal(calls.length, 0);
+  assert.equal(sql.prepare('SELECT count(*) AS count FROM website_buyer_role_queue').get().count, 0);
+});
+
+for (const failure of [404, 403, 429]) test(`Discord HTTP ${failure} leaves a durable retry without losing the redeemed key`, async t => {
+  const { env, sql } = await setup(t);
+  const { calls } = discordRoles(t, env, { fail: () => new Response(null, { status: failure, headers: { 'Retry-After': '900' } }) });
+  const response = await worker.fetch(request({ method: 'POST', body: { key } }), env);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.license.key, key);
+  assert.equal(data.roleSync, 'pending');
+  assert.deepEqual(calls.map(call => call.method), ['GET']);
+  const queued = sql.prepare('SELECT * FROM website_buyer_role_queue').get();
+  assert.equal(queued.discord_id, '111111111111111111');
+  assert.ok(queued.next_attempt_at > Math.floor(Date.now()/1000));
+  if (failure === 429) assert.ok(queued.next_attempt_at >= Math.floor(Date.now()/1000)+899);
+});
+
+test('Member removal failures retry without granting Buyer again or removing other roles', async t => {
+  const { env, sql } = await setup(t);
+  let unavailable = true;
+  const { calls, assigned } = discordRoles(t, env, { fail: method => unavailable && method === 'DELETE' ? new Response(null, { status: 503 }) : null });
+  const response = await worker.fetch(request({ method: 'POST', body: { key } }), env);
+  assert.equal((await response.json()).roleSync, 'pending');
+  assert.ok(assigned.has('444444444444444444'));
+  assert.ok(assigned.has('333333333333333333'));
+  unavailable = false; calls.length = 0;
+  sql.exec('UPDATE website_buyer_role_queue SET next_attempt_at=0');
+  await worker.scheduled({}, env);
+  assert.deepEqual(calls.map(call => call.method), ['GET', 'DELETE']);
+  assert.deepEqual([...assigned].sort(), ['444444444444444444', '555555555555555555']);
 });

@@ -2,6 +2,13 @@
 
 ## License dashboard
 
+Redeemed website keys show their Discord name and Discord ID in both Licenses
+and Users & devices, before any loader login. The loader username is a separate
+column. Ownership comes from `website_account_licenses`, joined by license ID,
+never from matching names. Both Workers share the production D1 database.
+New installations also need `discord-login/account-license-schema.sql`;
+existing account tables need `discord-login/migration-license-discord.sql` once.
+
 The owner dashboard can create up to 100 high-entropy license keys at a time,
 and list licenses. A key becomes active on its first successful sign-in; its
 duration starts then. Hour, day, week, 30-day month, 365-day year, and lifetime

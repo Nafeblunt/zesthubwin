@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import worker from './worker.mjs';
+import admin from '../private-admin/admin.mjs';
+import { generateKeyPair, exportJWK, SignJWT } from '../private-admin/node_modules/jose/dist/webapi/index.js';
 
 const token = 'a'.repeat(64), otherToken = 'b'.repeat(64);
 const key = 'ZEST-' + 'AB'.repeat(24);
@@ -103,4 +105,53 @@ test('missing vault configuration fails without exposing a key', async t => {
   const response = await worker.fetch(request({ method: 'POST', body: { key } }), env);
   assert.equal(response.status, 503);
   assert.ok(!(await response.text()).includes(key));
+});
+
+test('admin sees the redeemed Discord owner before loader login and keeps the identity after logout', async t => {
+  const { env, sql } = await setup(t);
+  assert.equal((await worker.fetch(request({ method: 'POST', body: { key, discord_username: 'forged' } }), env)).status, 200);
+  sql.exec('DELETE FROM website_sessions');
+  const { privateKey, publicKey } = await generateKeyPair('RS256');
+  const jwk = { ...await exportJWK(publicKey), kid: 'admin-test', alg: 'RS256' };
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.equal(String(url), 'https://test.cloudflareaccess.com/cdn-cgi/access/certs');
+    return Response.json({ keys: [jwk] });
+  });
+  const jwt = await new SignJWT({ email: 'owner@example.com' }).setProtectedHeader({ alg: 'RS256', kid: 'admin-test' })
+    .setIssuer('https://test.cloudflareaccess.com').setAudience('test').setIssuedAt().setExpirationTime('1h').sign(privateKey);
+  const adminEnv = { DLL_BUCKET: {}, LICENSE_DB: env.DB, ACCESS_TEAM_DOMAIN: 'https://test.cloudflareaccess.com', ACCESS_AUD: 'test', OWNER_EMAIL: 'owner@example.com' };
+  const response = await admin.fetch(new Request('https://admin.example/api/licenses', { headers: { 'Cf-Access-Jwt-Assertion': jwt } }), adminEnv);
+  assert.equal(response.status, 200);
+  const [license] = (await response.json()).licenses;
+  assert.equal(license.discord_id, '111111111111111111');
+  assert.equal(license.discord_username, 'Member');
+  assert.ok(license.redeemed_at > 0);
+  assert.equal(license.username, null);
+  assert.equal(license.key_ciphertext, undefined);
+});
+
+test('a second Discord account cannot replace the saved redemption identity', async t => {
+  const { env, sql } = await setup(t);
+  await worker.fetch(request({ method: 'POST', body: { key } }), env);
+  sql.prepare('UPDATE website_sessions SET username=? WHERE discord_id=?').run('Attacker', '222222222222222222');
+  assert.equal((await worker.fetch(request({ method: 'POST', session: otherToken, body: { key } }), env)).status, 409);
+  const owner = sql.prepare('SELECT * FROM website_account_licenses').get();
+  assert.equal(owner.discord_username, 'Member');
+  assert.equal(owner.discord_id, '111111111111111111');
+});
+
+test('existing redemptions recover names by Discord ID, without guessing from loader usernames', t => {
+  const sql = new DatabaseSync(':memory:');
+  t.after(() => sql.close());
+  sql.exec(readFileSync(new URL('../private-admin/schema.sql', import.meta.url), 'utf8'));
+  sql.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
+  sql.exec(`CREATE TABLE website_account_licenses(license_id TEXT PRIMARY KEY,discord_id TEXT NOT NULL,key_ciphertext TEXT NOT NULL,redeemed_at INTEGER NOT NULL);
+    INSERT INTO website_account_licenses VALUES('old','111111111111111111','encrypted',10),('unknown','222222222222222222','encrypted',11);
+    INSERT INTO website_sessions VALUES('old-session','111111111111111111','Old name',10),('new-session','111111111111111111','Current name',20);
+    INSERT INTO licenses(id,key_hash,created_at,duration_seconds,username) VALUES('unknown','hash',1,3600,'Current name');`);
+  sql.exec(readFileSync(new URL('./migration-license-discord.sql', import.meta.url), 'utf8'));
+  assert.equal(sql.prepare("SELECT discord_username FROM website_account_licenses WHERE license_id='old'").get().discord_username, 'Current name');
+  const unknown = sql.prepare("SELECT * FROM website_account_licenses WHERE license_id='unknown'").get();
+  assert.equal(unknown.discord_id, '222222222222222222');
+  assert.equal(unknown.discord_username, null);
 });

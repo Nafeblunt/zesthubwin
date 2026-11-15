@@ -11,6 +11,20 @@ requires the existing session, website Origin and rate limiter. Keys use the
 existing format: `ZEST-` plus 48 hexadecimal characters. Browser-supplied account
 IDs are ignored. A licence can belong to only one Discord account.
 
+Redemption also saves the name from the authenticated Discord session as
+`website_account_licenses.discord_username`. The admin lists this name, the
+stable `discord_id`, and `redeemed_at` separately from the loader `username`.
+Names remain available after logout; the Discord ID is the ownership identifier.
+Repeat redemption by the same account refreshes its saved name without changing
+ownership or extending the licence. No key or encrypted key is included in the
+admin listing API.
+
+For installations with the original account table, apply
+`migration-license-discord.sql` once before deploying either Worker. It adds the
+name column and backfills existing redemptions from the latest stored session
+for the same Discord ID. Records without a session still display their linked
+Discord ID. Fresh installations use `account-license-schema.sql` instead.
+
 Redeeming an unused key starts its timer. Already-activated keys keep their
 activation and expiry. Redemption does not bind or reset the loader username or
 device, grant Discord roles, or alter existing payment processing. Invalid,

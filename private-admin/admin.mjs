@@ -67,7 +67,12 @@ export default {
         if (url.pathname === '/api/licenses' && request.method === 'GET') {
           const offset = Number(url.searchParams.get('offset') || '0');
           if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) return new Response('Invalid offset', { status: 400, headers });
-          const rows = await env.LICENSE_DB.prepare('SELECT l.id,l.username,l.created_at,l.activated_at,l.expires_at,l.duration_seconds,l.revoked,l.hwid_hash IS NOT NULL AS device_bound,CASE WHEN b.hwid_hash IS NULL THEN 0 ELSE 1 END AS device_banned FROM licenses l LEFT JOIN banned_devices b ON l.hwid_hash=b.hwid_hash ORDER BY l.created_at DESC,l.id DESC LIMIT 501 OFFSET ?').bind(offset).all();
+          const rows = await env.LICENSE_DB.prepare(`SELECT l.id,l.username,l.created_at,l.activated_at,l.expires_at,l.duration_seconds,l.revoked,
+            a.discord_id,a.discord_username,a.redeemed_at,l.hwid_hash IS NOT NULL AS device_bound,
+            CASE WHEN b.hwid_hash IS NULL THEN 0 ELSE 1 END AS device_banned
+            FROM licenses l LEFT JOIN banned_devices b ON l.hwid_hash=b.hwid_hash
+            LEFT JOIN website_account_licenses a ON a.license_id=l.id
+            ORDER BY l.created_at DESC,l.id DESC LIMIT 501 OFFSET ?`).bind(offset).all();
           return Response.json({ licenses: rows.results.slice(0, 500), nextOffset: rows.results.length > 500 ? offset + 500 : null }, { headers });
         }
         if (url.pathname === '/api/licenses' && request.method === 'POST') {

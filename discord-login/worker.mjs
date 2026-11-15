@@ -115,10 +115,10 @@ export default {
         } });
         const token = cookies(request)[SESSION];
         if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { error: 'Sign in with Discord first' }, 401);
-        const session = await env.DB.prepare('SELECT discord_id FROM website_sessions WHERE session_hash=? AND expires_at>?')
+        const session = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
           .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
         if (!session) return json(request, { error: 'Sign in with Discord first' }, 401);
-        return await handleAccountLicense(request, session.discord_id, { db: env.DB, secret: env.ACCOUNT_VAULT_SECRET,
+        return await handleAccountLicense(request, session.discord_id, { db: env.DB, secret: env.ACCOUNT_VAULT_SECRET, discordUsername: session.username,
           limiter: env.COMMUNITY_LIMIT, readBody: readCommunityBody, reply: (value, status) => json(request, value, status) });
       }
       const chatRoute = /^\/(chat|shoutbox)(?:\/([a-f0-9]{24})(\/mute)?)?$/.exec(url.pathname);

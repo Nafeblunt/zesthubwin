@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS website_account_licenses (
   license_id TEXT PRIMARY KEY REFERENCES licenses(id),
   discord_id TEXT NOT NULL,
+  discord_username TEXT,
   key_ciphertext TEXT NOT NULL,
   redeemed_at INTEGER NOT NULL
 );

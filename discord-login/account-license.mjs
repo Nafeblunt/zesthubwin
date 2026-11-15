@@ -19,7 +19,7 @@ async function ownedLicense(db, secret, discordId, licenseId = null) {
   };
 }
 
-export async function handleAccountLicense(request, discordId, { db, secret, limiter, readBody, reply }) {
+export async function handleAccountLicense(request, discordId, { db, secret, limiter, readBody, reply, discordUsername }) {
   if (!/^[a-f0-9]{64}$/i.test(secret || '')) return reply({ error: 'Licence service is temporarily unavailable' }, 503);
   if (request.method === 'GET') return reply({ license: await ownedLicense(db, secret, discordId) });
   if (request.method !== 'POST') return reply({ error: 'Method not allowed' }, 405);
@@ -39,10 +39,12 @@ export async function handleAccountLicense(request, discordId, { db, secret, lim
   // The primary key prevents two Discord accounts from redeeming the same key.
   // Linking and starting the timer commit together; repeat redemption keeps expiry.
   await db.batch([
-    db.prepare(`INSERT OR IGNORE INTO website_account_licenses(license_id,discord_id,key_ciphertext,redeemed_at)
-      SELECT id,?,?,? FROM licenses l WHERE id=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)
+    db.prepare(`INSERT OR IGNORE INTO website_account_licenses(license_id,discord_id,discord_username,key_ciphertext,redeemed_at)
+      SELECT id,?,?,?,? FROM licenses l WHERE id=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)
       AND NOT EXISTS(SELECT 1 FROM banned_devices b WHERE b.hwid_hash=l.hwid_hash)`)
-      .bind(discordId, cipher, now, license.id, now),
+      .bind(discordId, discordUsername, cipher, now, license.id, now),
+    db.prepare('UPDATE website_account_licenses SET discord_username=? WHERE license_id=? AND discord_id=?')
+      .bind(discordUsername, license.id, discordId),
     db.prepare(`UPDATE licenses SET activated_at=COALESCE(activated_at,?),
       expires_at=COALESCE(expires_at,CASE WHEN duration_seconds=253402300799 THEN 253402300799 ELSE ?+duration_seconds END)
       WHERE id=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)

@@ -191,7 +191,7 @@
       const date = new Date(row.created_at * 1000);
       time.dateTime = date.toISOString();
       time.title = date.toLocaleString();
-      time.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      time.textContent = zestTimeAgo(row.created_at);
       article.append(avatar, line, time);
       messages.append(article);
     }
@@ -204,6 +204,9 @@
 
   async function loadMessages() {
     if (loading || document.hidden) return;
+    messages.querySelectorAll('time[datetime]').forEach(time => {
+      time.textContent = zestTimeAgo(Date.parse(time.dateTime) / 1000);
+    });
     loading = true;
     const version = requestVersion;
     try {

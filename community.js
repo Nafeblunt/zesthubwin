@@ -30,7 +30,12 @@ function renderPosts() {
     const article = document.createElement('article'); article.className = 'community-post';
     const heading = document.createElement('h2'); heading.textContent = post.title;
     const meta = document.createElement('p'); meta.className = 'community-meta';
-    meta.textContent = `${post.author_name} · ${new Date(post.created_at * 1000).toLocaleDateString()}`;
+    const time = document.createElement('time');
+    const date = new Date(post.created_at * 1000);
+    time.dateTime = date.toISOString();
+    time.title = date.toLocaleString();
+    time.textContent = zestTimeAgo(post.created_at);
+    meta.append(document.createTextNode(`${post.author_name} · `), time);
     const body = document.createElement('p'); body.className = 'community-body'; body.textContent = post.body;
     article.append(heading, meta, body);
     if (currentSession?.user && (currentSession.marketOwner || currentSession.user.id === post.author_id)) {
@@ -71,5 +76,11 @@ form.addEventListener('submit', async event => {
 });
 
 loadPosts().catch(error => { status.textContent = error.message || 'Could not load posts'; });
+setInterval(() => {
+  if (document.hidden) return;
+  posts.querySelectorAll('time[datetime]').forEach(time => {
+    time.textContent = zestTimeAgo(Date.parse(time.dateTime) / 1000);
+  });
+}, 60000);
 
 })();

@@ -1,14 +1,23 @@
 (() => {
+  // Only the first page in this tab gets the entrance fade.
+  try {
+    if (!sessionStorage.getItem('zest:entered')) {
+      document.body.classList.add('site-enter');
+      sessionStorage.setItem('zest:entered', '1');
+    }
+  } catch {
+    // Keep navigation immediate when browser storage is unavailable.
+  }
   const host = document.getElementById('site-header');
   if (!host) return;
-  host.innerHTML = `  <div class="bar hidden" id="bar">
+  host.innerHTML = `  <div class="bar" id="bar">
     <nav class="bar-links" aria-label="Main navigation">
       <a class="button-link" href="/" aria-current="page">Home</a>
       <a class="button-link" href="/Forum">Forum</a>
       <a class="button-link" href="/Market">Market</a>
       <a class="button-link" href="/Chat">Chat</a>
     </nav>
-    <section class="login hidden" id="login" aria-label="Account">
+    <section class="login" id="login" aria-label="Account">
       <button class="login-btn" id="login-btn" type="button" title="Log in with Discord">Log in</button>
       <button class="account-btn" id="account-btn" type="button" aria-label="Open account" title="Account" hidden>
         <img id="discord-avatar" alt="" width="40" height="40" hidden>
@@ -49,8 +58,4 @@
     link.removeAttribute('aria-current');
     if (link.textContent === host.dataset.page) link.setAttribute('aria-current', 'page');
   });
-  if (!document.getElementById('loader')) {
-    host.querySelector('#bar').classList.remove('hidden');
-    host.querySelector('#login').classList.remove('hidden');
-  }
 })();

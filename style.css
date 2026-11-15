@@ -1,4 +1,4 @@
-﻿body {
+body {
   font-family: Monaco, monospace;
   background: #151515;
   color: #ffffff;
@@ -10,28 +10,14 @@ button, input, textarea, select {
   font-family: inherit;
 }
 
-.loader {
-  font-size: 24px;
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.6s ease;
+.site-enter > #site-header,
+.site-enter > main,
+.site-enter > .chat {
+  animation: fadeIn .45s ease-out;
 }
-
-.loader.fade-out { opacity: 0; }
-
-#typewriter::after {
-  content: "|";
-  margin-left: 2px;
-  animation: blink 0.8s step-end infinite;
-}
-
-@keyframes blink { 50% { opacity: 0; } }
 
 .hero {
   font-size: 20px;
-  animation: fadeIn 2s ease-in-out;
 }
 
 .hero.hidden { display: none; }
@@ -44,7 +30,6 @@ button, input, textarea, select {
   justify-self: end;
   grid-column: 3;
   font-size: 16px;
-  animation: fadeIn 2s ease-in-out;
 }
 
 .login.hidden { display: none; }
@@ -233,7 +218,7 @@ button:hover, .button-link:hover {
 .community-nav a { display: inline-block; }
 .community-nav a::after { left: 0; right: 0; bottom: -24px; }
 .hero { padding: 40px 20px 12px; }
-.chat { width: min(960px, calc(100% - 40px)); margin: 32px auto 60px; box-sizing: border-box; overflow: hidden; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel-background); text-align: left; animation: chatAppear .35s ease both; }
+.chat { width: min(960px, calc(100% - 40px)); margin: 32px auto 60px; box-sizing: border-box; overflow: hidden; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel-background); text-align: left; }
 .chat.hidden { display: none; }
 .community-main .chat { width: 100%; margin: 28px 0; }
 .chat-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--panel-divider); background: var(--panel-header); }
@@ -313,6 +298,7 @@ button:hover, .button-link:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .chat-user-menu:popover-open { animation: none; }
+  .site-enter > #site-header, .site-enter > main, .site-enter > .chat,
   .chat, .chat-message-new, .hero, .login { animation: none; }
   .bar-links a, .bar-links a::after, .community-nav a, .community-nav a::after, .chat-form input, .chat .chat-send { transition: none; }
 }

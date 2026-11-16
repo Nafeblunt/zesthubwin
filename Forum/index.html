@@ -15,7 +15,15 @@
 <body data-community="forum">
   <div id="site-header" data-page="Forum"></div>
   <main class="community-main">
-    <header class="community-header"><h1>Forum</h1></header>
+    <aside class="sidebar" aria-labelledby="intro-title">
+      <header class="community-header"><h1>Forum</h1></header>
+      <div class="chat sidebar-panel">
+        <header class="chat-header"><div><h2 id="intro-title"></h2></div></header>
+        <div class="sidebar-body">
+          <button id="compose-btn" class="chat-link" type="button">Cs2</button>
+        </div>
+      </div>
+    </aside>
     <section class="chat community-compose" aria-labelledby="compose-title" hidden id="compose">
       <header class="chat-header"><div><h2 id="compose-title">New post</h2></div></header>
       <form class="compose-form" id="post-form">

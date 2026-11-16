@@ -1,4 +1,4 @@
-body {
+﻿body {
   font-family: Monaco, monospace;
   background: #151515;
   color: #ffffff;
@@ -54,7 +54,7 @@ button, input, textarea, select {
 .account-dialog button:focus-visible { outline: 2px solid #a58aff; outline-offset: 2px; }
 .account-panel { padding: 24px 20px; min-width: 0; background: var(--panel-background); }
 .account-panel[hidden] { display: none; }
-.account-kicker { margin: 0 0 14px; color: #8f869c; font-size: 10px; letter-spacing: .12em; }
+.account-kicker { margin: 0 0 14px; color: #8f869c; font-size: 18px; letter-spacing: .12em; }
 #account-name { margin: 0 0 20px; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
 #account-licence-form { display: grid; gap: 12px; }
 #account-licence-form label { font-size: 13px; color: #d7cde3; }

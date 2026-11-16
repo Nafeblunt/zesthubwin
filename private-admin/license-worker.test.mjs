@@ -11,14 +11,15 @@ test('license claim, device reset, ban, expiry and revocation gate storage', asy
   const digest = async text => Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).toString('hex');
   const keyHash = await digest(key);
   db.prepare('INSERT INTO licenses (id,key_hash,created_at,duration_seconds) VALUES (?,?,?,?)').run('id', keyHash, 1, 86400);
-  let downloads = 0;
+  let downloads = 0;const objects=[];
   const env = { LICENSE_DB: { prepare: sql => ({ bind: (...args) => ({ first: async () => db.prepare(sql).get(...args) }) }) },
-    LOGIN_LIMIT: { limit: async () => ({ success: true }) }, DLL_BUCKET: { get: async () => {
+    LOGIN_LIMIT: { limit: async () => ({ success: true }) }, DLL_BUCKET: { get: async name => {
+      objects.push(name);
       downloads++; return { size: 64, body: new Uint8Array(64) };
     } } };
-  async function attempt(user, device) {
-    const body = JSON.stringify({ username: user, key, hwid: device });
-    const request = new Request('https://example.com/download', { method: 'POST', body,
+  async function attempt(user, device, game, route='/download') {
+    const body = JSON.stringify({ username: user, key, hwid: device, ...(game===undefined?{}:{game}) });
+    const request = new Request('https://example.com'+route, { method: 'POST', body,
       headers: { 'content-length': String(Buffer.byteLength(body)), 'cf-connecting-ip': '127.0.0.1' } });
     return (await worker.fetch(request, env)).status;
   }
@@ -38,6 +39,18 @@ test('license claim, device reset, ban, expiry and revocation gate storage', asy
   db.prepare('UPDATE licenses SET revoked=0, username=NULL, hwid_hash=NULL, activated_at=NULL, expires_at=NULL, duration_seconds=253402300799 WHERE id=?').run('id');
   assert.equal(await attempt(username, 'device-three'), 200);
   assert.equal(db.prepare('SELECT expires_at FROM licenses WHERE id=?').get('id').expires_at, 253402300799);
+  const previous=downloads;
+  assert.equal(await attempt(username,'device-three',undefined,'/authenticate'),200);
+  assert.equal(downloads,previous,'authentication must not require a DLL upload');
+  assert.equal(await attempt(username,'device-three','fallout76'),200);
+  assert.equal(objects.at(-1),'Fallout76ESP.dll');
+  assert.equal(await attempt(username,'device-three','cs2'),200);
+  assert.equal(objects.at(-1),'ZestHub.dll');
+  for(const game of ['unknown','constructor','__proto__','../ZestHub.dll','']){
+    const before=downloads;assert.equal(await attempt(username,'device-three',game),400);assert.equal(downloads,before);
+  }
+  db.prepare('UPDATE licenses SET revoked=1 WHERE id=?').run('id');
+  const before=downloads;assert.equal(await attempt(username,'device-three','fallout76'),401);assert.equal(downloads,before);
 });
 
 test('duration edits use activation time and preserve unused and lifetime behavior', () => {

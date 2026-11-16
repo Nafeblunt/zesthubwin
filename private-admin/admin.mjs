@@ -1,3 +1,5 @@
+import { upload } from './uploads.mjs';
+export { randomLoaderName } from './uploads.mjs';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import dashboard from './dashboard.mjs';
 import { sealKey, openKey } from './key-vault.mjs';
@@ -28,14 +30,6 @@ const r=await fetch('/api/licenses',{method:'POST',headers:{'Content-Type':'appl
 if(!r.ok){output.textContent='Could not generate key.';return}const data=await r.json();output.textContent=data.key;refresh()};refresh();</script></html>`;
 
 function randomHex(size) { return Array.from(crypto.getRandomValues(new Uint8Array(size)), x => x.toString(16).padStart(2, '0')).join(''); }
-export function randomLoaderName() {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-  for (;;) {
-    const bytes = crypto.getRandomValues(new Uint8Array(8));
-    const name = Array.from(bytes.slice(1, 7 + (bytes[0] & 1)), n => letters[n % letters.length]).join('');
-    if (/[A-Z]/.test(name) && /[a-z]/.test(name)) return name + '.exe';
-  }
-}
 async function hash(text) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), x => x.toString(16).padStart(2, '0')).join(''); }
 
 async function authorize(request, env) {
@@ -129,25 +123,8 @@ export default {
       } catch { return new Response('Database error', { status: 503, headers }); }
       return new Response('Not found', { status: 404, headers });
     }
-    if ((url.pathname === '/upload' || url.pathname === '/upload-loader') && request.method === 'PUT') {
-      if (request.headers.get('Origin') !== url.origin) return new Response('Forbidden', { status: 403, headers });
-      const length = Number(request.headers.get('Content-Length'));
-      if (!Number.isSafeInteger(length) || length < 64 || length > 64 * 1024 * 1024 || !request.body)
-        return new Response('Invalid file size', { status: 400, headers });
-      try {
-        const isLoader = url.pathname === '/upload-loader';
-        let downloadName;
-        if (isLoader) {
-          const previous = await env.DLL_BUCKET.head('ZestHub-Loader.exe');
-          do { downloadName = randomLoaderName(); } while (downloadName === previous?.customMetadata?.downloadName);
-        }
-        await env.DLL_BUCKET.put(isLoader ? 'ZestHub-Loader.exe' : 'ZestHub.dll', request.body, {
-          httpMetadata: { contentType: 'application/octet-stream' },
-          ...(isLoader ? { customMetadata: { downloadName } } : {})
-        });
-        return new Response('Uploaded', { headers });
-      } catch { return new Response('Upload failed', { status: 503, headers }); }
-    }
+    if ((url.pathname === '/upload' || url.pathname === '/upload-loader') && request.method === 'PUT')
+      return upload(request, env, headers);
     return new Response('Not found', { status: 404, headers });
   }
 };

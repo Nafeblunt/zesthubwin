@@ -1,5 +1,20 @@
 # Private DLL upload
 
+## Game uploads
+
+Files > Game DLL selects Counter-Strike 2 or Fallout 76. Uploads use the fixed
+storage keys `ZestHub.dll` and `Fallout76ESP.dll`, respectively. A Fallout upload
+does not replace CS2. Upload the new loader EXE separately under Website loader.
+
+The loader signs in through `POST /authenticate` without reading a DLL, then
+requests `POST /download` with `game: "cs2"` or `game: "fallout76"` when launching.
+The same existing license and device checks gate both games. Missing `game` still
+selects CS2 for older loaders; unknown IDs are rejected. Download responses include
+`X-Zest-Game`, which the new loader checks before accepting a DLL. No schema or
+license migration is required. Missing game uploads return 404 after authentication.
+
+Both `wrangler.toml` and `license-wrangler.toml` must be deployed for this change.
+
 ## License dashboard
 
 Redeemed website keys show their Discord name and Discord ID in both Licenses
@@ -39,14 +54,14 @@ The owner's real admin login, generation and management controls still need
 to be checked through the browser. The old public GitHub release remains a
 separate public distribution path until the owner removes it.
 
-This is a separate Cloudflare Worker for the owner to replace `ZestHub.dll` in
+This is a separate Cloudflare Worker for the owner to replace game DLLs in
 the private R2 bucket used by the loader's download Worker. The public website
 does not contain the DLL or an upload password.
 
 The admin Worker requires a valid Cloudflare Access application JWT signed by
 your Cloudflare team, with the configured audience and exact owner email. Missing
 settings or an invalid token deny access. The upload accepts one file up to 64 MiB
-and overwrites `ZestHub.dll`; only upload a DLL you trust. The Worker does not
+and replaces only the selected game's object; only upload a DLL you trust. The Worker does not
 inspect whether the uploaded file is a valid DLL.
 
 ## Setup

@@ -1,9 +1,12 @@
 const fail = (status, message) => Response.json({ error: message }, { status, headers: { 'Cache-Control': 'no-store' } });
 async function hash(value) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), x => x.toString(16).padStart(2, '0')).join(''); }
 
+import { gameFor } from './games.mjs';
+
 export default {
   async fetch(request, env) {
-    if (new URL(request.url).pathname !== '/download' || request.method !== 'POST') return fail(404, 'Not found');
+    const route = new URL(request.url).pathname;
+    if (!['/download', '/authenticate'].includes(route) || request.method !== 'POST') return fail(404, 'Not found');
     if (!env.LICENSE_DB || !env.DLL_BUCKET || !env.LOGIN_LIMIT) return fail(503, 'Unavailable');
     try {
       const ip = request.headers.get('cf-connecting-ip');
@@ -14,6 +17,8 @@ export default {
       const body = await request.text();
       if (new TextEncoder().encode(body).length > 8192) return fail(400, 'Invalid request');
       const input = JSON.parse(body);
+      const game = gameFor(input.game);
+      if (!game) return fail(400, 'Unknown game');
       if (typeof input.username !== 'string' || !/^[a-zA-Z0-9_.-]{3,32}$/.test(input.username) ||
           typeof input.key !== 'string' || !/^ZEST-[A-F0-9]{48}$/.test(input.key) ||
           typeof input.hwid !== 'string' || input.hwid.length < 4 || input.hwid.length > 512)
@@ -30,10 +35,12 @@ export default {
         AND NOT EXISTS (SELECT 1 FROM banned_devices WHERE hwid_hash=?) RETURNING id`)
         .bind(input.username, deviceHash, now, now, keyHash, input.username, deviceHash, now, deviceHash).first();
       if (!row) return fail(401, 'Invalid credentials or license');
-      const object = await env.DLL_BUCKET.get('ZestHub.dll');
-      if (!object || object.size < 64 || object.size > 256 * 1024 * 1024) return fail(503, 'Download unavailable');
+      if (route === '/authenticate') return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
+      const object = await env.DLL_BUCKET.get(game.objectKey);
+      if (!object) return fail(404, 'This game DLL has not been uploaded');
+      if (object.size < 64 || object.size > 256 * 1024 * 1024) return fail(503, 'Download unavailable');
       return new Response(object.body, { headers: { 'Content-Type': 'application/octet-stream',
-        'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+        'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Zest-Game': input.game ?? 'cs2' } });
     } catch { return fail(503, 'Unavailable'); }
   }
 };

@@ -70,6 +70,15 @@ button:hover, .button-link:hover {
   transform: rotate(var(--hover-tilt, 0deg));
 }
 
+.game-status {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 6px;
+  background: #15ff00;
+  font-size: 20px;
+  line-height: 32px;
+}
 
 /* 4. Header bar
    ========================================================================== */

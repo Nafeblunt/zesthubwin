@@ -232,6 +232,15 @@ export default {
           .bind(id, kind, title, body, session.discord_id, session.username, created).run();
         return json(request, { id }, 201);
       }
+      if (url.pathname.startsWith('/payments/')) {
+        // Live checkout stays disconnected until the requirements in payments/README.md are met.
+        // When ready, mirror the /sandbox/payments/ branch below with PayPalLive and the live bindings.
+        if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: {
+          'Access-Control-Allow-Origin': SITE, 'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin'
+        } });
+        return json(request, { error: 'Checkout is not open yet' }, 503);
+      }
       if (url.pathname === '/sandbox/payments/webhook') {
         if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_WEBHOOK_ID ||
             !env.PAYPAL_SANDBOX_CLIENT_ID || !env.PAYPAL_SANDBOX_CLIENT_SECRET || !env.PAYPAL_SANDBOX_MERCHANT_ID)

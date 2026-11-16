@@ -184,23 +184,26 @@ button:hover, .button-link:hover {
 .community-header .community-kicker { color: #b580ff; font-size: .75rem; letter-spacing: .14em; }
 .community-note, .community-meta, .community-empty { color: #aaa; }
 .community-note { margin: 28px 0; }
-.community-compose { margin-top: 32px; border: 1px solid #3a2a4b; border-radius: 12px; padding: 22px; background: #1b1b1b; }
-.community-compose[hidden] { display: none; }
-.community-compose h2 { margin: 0 0 16px; font-size: 1.1rem; }
-.community-compose form { display: grid; gap: 10px; }
-.community-compose label { color: #bbb; font-size: .9rem; }
-.community-compose input, .community-compose textarea { box-sizing: border-box; width: 100%; border: 1px solid #444; border-radius: 8px; background: #151515; padding: 12px; color: #fff; font: inherit; }
-.community-compose input:focus, .community-compose textarea:focus { outline: 2px solid #7700ff; outline-offset: 1px; }
-.community-compose textarea { resize: vertical; }
-.community-submit { justify-self: start; border: 1px solid #7700ff; margin-top: 4px; }
-.community-submit:disabled { opacity: .5; cursor: wait; }
-.community-posts { margin-top: 28px; border-top: 1px solid #333; }
-.community-post { padding: 20px 0; border-bottom: 1px solid #333; overflow-wrap: anywhere; }
-.community-post h2 { margin: 0; font-size: 1.15rem; }
-.community-meta { margin: 6px 0 12px; font-size: .8rem; }
-.community-body { margin: 0; white-space: pre-wrap; line-height: 1.55; }
-.community-delete { margin-top: 8px; padding: 4px 0; color: #aaa; font-size: .8rem; }
-@media (max-width: 600px) { .community-main { padding-top: 32px; } .community-nav a { margin-right: 10px; } }
+.community-main .community-compose, .community-main .community-posts { width: 100%; margin: 28px 0 0; }
+.community-main .community-compose[hidden] { display: none; }
+.compose-form { display: grid; gap: 10px; padding: 14px; }
+.compose-form input, .compose-form textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid #353438; border-radius: 6px; background: #0e0e10; color: #eee; font: inherit; font-size: 13px; line-height: 1.55; transition: border-color .2s ease, box-shadow .2s ease; }
+.compose-form input::placeholder, .compose-form textarea::placeholder { color: #81808a; }
+.compose-form input:focus, .compose-form textarea:focus { outline: none; border-color: var(--chat-accent); box-shadow: 0 0 0 3px #a58aff12; }
+.compose-form textarea { resize: vertical; min-height: 96px; }
+.compose-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.community-list { padding: 0 20px; }
+.community-post { padding: 16px 0; border-bottom: 1px solid #252526; overflow-wrap: anywhere; }
+.community-post:last-child { border-bottom: 0; }
+.community-post h3 { margin: 0; font-size: 14px; font-weight: 600; color: #eee8ff; }
+.community-meta { margin: 4px 0 10px; font-size: 11px; color: #88818f; }
+.community-meta time { color: #797884; }
+.community-body { margin: 0; white-space: pre-wrap; color: #d6d5dc; font-size: 13px; line-height: 1.65; }
+.community-empty { display: grid; place-items: center; margin: 0; padding: 44px 0; color: #91909a; font-size: 13px; text-align: center; }
+.community-delete { margin: 10px 0 0; padding: 0; border-radius: 2px; color: #88818f; font-size: 11px; }
+.community-delete:hover { transform: none; text-shadow: none; color: #e2a2ac; }
+.community-delete:disabled { opacity: .4; cursor: wait; }
+@media (max-width: 600px) { .community-main { padding-top: 32px; } .community-nav a { margin-right: 10px; } .compose-form { padding: 10px; } .community-list { padding: 0 14px; } }
 
 /* Community chat and the shared navigation selection. */
 :root { --chat-accent: #a58aff; --panel-background: #111112; --panel-header: #181819; --panel-border: #303030; --panel-divider: #2b2b2e; }
@@ -218,6 +221,24 @@ button:hover, .button-link:hover {
 .community-nav a { display: inline-block; }
 .community-nav a::after { left: 0; right: 0; bottom: -24px; }
 .hero { padding: 40px 20px 12px; }
+.hero #buy-btn { border: 1px solid #7961b4; background: #a58aff; color: #15101f; }
+.hero #buy-btn:hover { background: #baa5ff; color: #15101f; text-shadow: none; }
+.buy-dialog { width: min(640px, calc(100% - 32px)); }
+.buy-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.buy-summary { padding: 24px 20px; border-right: 1px solid var(--panel-divider); background: var(--panel-header); }
+.buy-checkout { padding: 24px 20px; }
+.buy-price { margin: 0 0 16px; font-size: 26px; font-weight: 600; color: #eee8ff; }
+.buy-price span { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: #8f869c; }
+.buy-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 12px; line-height: 1.6; color: #d0c4df; }
+.buy-list li { position: relative; padding-left: 14px; }
+.buy-list li::before { content: ''; position: absolute; left: 0; top: .65em; width: 5px; height: 5px; border-radius: 50%; background: var(--chat-accent); }
+.buy-checkout .chat-send { width: 100%; margin-bottom: 10px; padding: 11px 15px; }
+.buy-checkout .chat-send[hidden], #paypal-button[hidden] { display: none; }
+#paypal-button { min-height: 45px; margin-bottom: 10px; }
+.buy-status { margin: 0; color: #a99db7; font-size: 11px; line-height: 1.7; }
+.buy-status:empty { display: none; }
+.buy-key { margin: 10px 0 0; padding: 10px 12px; border: 1px solid #46404f; border-radius: 7px; background: #0f0f11; color: #ded3f4; font-size: 12px; overflow-wrap: anywhere; user-select: all; }
+@media (max-width: 560px) { .buy-body { grid-template-columns: minmax(0, 1fr); } .buy-summary { border-right: 0; border-bottom: 1px solid var(--panel-divider); } }
 .chat { width: min(960px, calc(100% - 40px)); margin: 32px auto 60px; box-sizing: border-box; overflow: hidden; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel-background); text-align: left; }
 .chat.hidden { display: none; }
 .community-main .chat { width: 100%; margin: 28px 0; }

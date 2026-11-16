@@ -16,11 +16,21 @@
   <main class="community-main">
     <header class="community-header"><h1>Market</h1></header>
     <p class="community-note">Market is coming soon</p>
-    <section class="community-compose" aria-labelledby="compose-title" hidden id="compose">
-      <h2 id="compose-title">New listing</h2>
-      <form id="post-form"><label for="post-title">Title</label><input id="post-title" maxlength="100" required><label for="post-body">Description</label><textarea id="post-body" maxlength="4000" rows="5" required></textarea><button class="community-submit" type="submit">Publish</button></form>
+    <section class="chat community-compose" aria-labelledby="compose-title" hidden id="compose">
+      <header class="chat-header"><div><h2 id="compose-title">New listing</h2></div></header>
+      <form class="compose-form" id="post-form">
+        <label class="visually-hidden" for="post-title">Title</label>
+        <input id="post-title" placeholder="Title" maxlength="100" autocomplete="off" required>
+        <label class="visually-hidden" for="post-body">Description</label>
+        <textarea id="post-body" placeholder="Description" maxlength="4000" rows="4" required></textarea>
+        <div class="compose-actions"><span class="chat-count" id="post-count">0/4000</span><button class="chat-send" type="submit">Publish <span aria-hidden="true">↗</span></button></div>
+      </form>
+      <p class="chat-status" id="community-status" role="status"></p>
     </section>
-    <p id="community-status" role="status"></p><section aria-label="Market listings" id="posts" class="community-posts"></section>
+    <section class="chat community-posts" aria-labelledby="posts-title">
+      <header class="chat-header"><div><h2 id="posts-title">Listings</h2></div></header>
+      <div id="posts" class="community-list"></div>
+    </section>
   </main>
 </body>
 </html>

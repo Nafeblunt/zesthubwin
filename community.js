@@ -5,6 +5,8 @@ const posts = document.getElementById('posts');
 const status = document.getElementById('community-status');
 const compose = document.getElementById('compose');
 const form = document.getElementById('post-form');
+const postBody = document.getElementById('post-body');
+const postCount = document.getElementById('post-count');
 let currentSession = null;
 let cachedPosts = [];
 
@@ -28,7 +30,7 @@ function renderPosts() {
   }
   for (const post of cachedPosts) {
     const article = document.createElement('article'); article.className = 'community-post';
-    const heading = document.createElement('h2'); heading.textContent = post.title;
+    const heading = document.createElement('h3'); heading.textContent = post.title;
     const meta = document.createElement('p'); meta.className = 'community-meta';
     const time = document.createElement('time');
     const date = new Date(post.created_at * 1000);
@@ -55,6 +57,8 @@ function renderPosts() {
   }
 }
 
+postBody.addEventListener('input', () => { postCount.textContent = `${postBody.value.length}/4000`; });
+
 window.addEventListener('zest:session', event => {
   currentSession = event.detail;
   compose.hidden = !currentSession?.user || (kind === 'market' && !currentSession.marketOwner);
@@ -70,12 +74,17 @@ form.addEventListener('submit', async event => {
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('post-title').value, body: document.getElementById('post-body').value }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not post');
-    form.reset(); await loadPosts(); status.textContent = 'Posted';
+    form.reset(); postCount.textContent = '0/4000'; await loadPosts(); status.textContent = 'Posted';
   } catch (error) { status.textContent = error.message || 'Could not post'; }
   finally { button.disabled = false; }
 });
 
-loadPosts().catch(error => { status.textContent = error.message || 'Could not load posts'; });
+loadPosts().catch(error => {
+  const failed = document.createElement('p');
+  failed.className = 'community-empty';
+  failed.textContent = error.message || 'Could not load posts';
+  posts.replaceChildren(failed);
+});
 setInterval(() => {
   if (document.hidden) return;
   posts.querySelectorAll('time[datetime]').forEach(time => {

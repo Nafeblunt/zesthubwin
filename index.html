@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -9,6 +9,7 @@
   <script src="shell.js" defer></script>
   <script src="time-ago.js" defer></script>
   <script src="chat.js" defer></script>
+  <script src="checkout.js" defer></script>
   <script src="script.js" defer></script>
 </head>
 <body>
@@ -18,7 +19,7 @@
   <main class="hero" id="hero">
     <h1>Zest Hub</h1>
     <button id="download-btn" type="button" hidden>Download</button>
-    <button id="buy-btn" type="button" title="Checkout coming soon" disabled>Buy</button>
+    <button id="buy-btn" type="button">Buy</button>
     <a class="button-link" href="https://discord.gg/j8rxvnFeGJ">Discord</a>
   </main>
 
@@ -33,6 +34,28 @@
     </form>
     <p class="chat-status" id="chat-status" role="status"></p>
   </section>
+
+  <dialog id="buy-dialog" class="account-dialog buy-dialog" aria-labelledby="buy-title">
+    <div class="account-heading"><h2 id="buy-title">Buy Zest Hub</h2><button id="buy-close" type="button" aria-label="Close checkout">&times;</button></div>
+    <div class="buy-body">
+      <div class="buy-summary">
+        <p class="account-kicker">LIFETIME LICENCE</p>
+        <p class="buy-price">$15 <span>USD, one time</span></p>
+        <ul class="buy-list">
+          <li>Key delivered to your Discord account on this site</li>
+          <li>Buyer role and loader download unlocked</li>
+          <li>No renewals</li>
+        </ul>
+      </div>
+      <div class="buy-checkout">
+        <p class="account-kicker">PAYMENT</p>
+        <button id="buy-login" class="chat-send" type="button" hidden>Log in with Discord</button>
+        <div id="paypal-button" hidden></div>
+        <button id="buy-retry" class="chat-send" type="button" hidden>Retry delivery</button>
+        <p id="buy-status" class="buy-status" role="status">Loading checkout</p>
+      </div>
+    </div>
+  </dialog>
 </body>
 </html>
 

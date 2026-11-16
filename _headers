@@ -6,7 +6,10 @@
   Cache-Control: no-transform
 
 /
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com; connect-src 'self' https://login.zesthub.win; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.paypal.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com https://www.paypalobjects.com; connect-src 'self' https://login.zesthub.win https://www.paypal.com; frame-src https://www.paypal.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+
+/payments/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.paypal.com https://www.sandbox.paypal.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.paypalobjects.com https://www.sandbox.paypal.com; connect-src 'self' https://login.zesthub.win https://www.paypal.com https://www.sandbox.paypal.com; frame-src https://www.paypal.com https://www.sandbox.paypal.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 
 /Forum*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com; connect-src 'self' https://login.zesthub.win; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'

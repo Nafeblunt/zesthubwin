@@ -66,3 +66,32 @@ test('duration edits use activation time and preserve unused and lifetime behavi
   update.get(3600,3600,3600,'id');
   assert.equal(db.prepare('SELECT expires_at FROM licenses').get().expires_at, null);
 });
+
+
+test('authenticated profile uses the license-linked Discord name, never a caller-supplied name', async () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../discord-login/account-license-schema.sql', import.meta.url), 'utf8'));
+  const key='ZEST-'+'B'.repeat(48);
+  const digest=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key))).toString('hex');
+  db.prepare('INSERT INTO licenses (id,key_hash,created_at,duration_seconds) VALUES (?,?,?,?)').run('profile',digest,1,86400);
+  const env={LICENSE_DB:{prepare:sql=>({bind:(...args)=>({first:async()=>db.prepare(sql).get(...args)})})},
+    LOGIN_LIMIT:{limit:async()=>({success:true})},DLL_BUCKET:{get:()=>{throw Error('Auth must not read storage');}}};
+  async function auth(overrides={}) {
+    const body=JSON.stringify({username:'loader-name',key,hwid:'device',discordName:'Forged',...overrides});
+    return worker.fetch(new Request('https://example.com/authenticate',{method:'POST',body,
+      headers:{'content-length':String(Buffer.byteLength(body)),'cf-connecting-ip':'127.0.0.1'}}),env);
+  }
+  let response=await auth();
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{ok:true,profile:{discordName:null}});
+  db.prepare('INSERT INTO website_account_licenses VALUES (?,?,?,?,?)').run('profile','123','Discord member','cipher',1);
+  response=await auth();
+  assert.deepEqual(await response.json(),{ok:true,profile:{discordName:'Discord member'}});
+  assert.equal(response.headers.get('cache-control'),'no-store');
+  assert.equal((await auth({key:'ZEST-'+'C'.repeat(48)})).status,401);
+  db.exec("UPDATE website_account_licenses SET discord_username='bad'||char(10)||'name'");
+  assert.deepEqual(await (await auth()).json(),{ok:true,profile:{discordName:null}});
+  db.exec('DROP TABLE website_account_licenses');
+  assert.equal((await auth()).status,200,'optional profile lookup must not break older installations');
+});

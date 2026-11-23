@@ -35,7 +35,19 @@ export default {
         AND NOT EXISTS (SELECT 1 FROM banned_devices WHERE hwid_hash=?) RETURNING id`)
         .bind(input.username, deviceHash, now, now, keyHash, input.username, deviceHash, now, deviceHash).first();
       if (!row) return fail(401, 'Invalid credentials or license');
-      if (route === '/authenticate') return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
+      if (route === '/authenticate') {
+        let discordName = null;
+        // The license owner is established by website redemption, not by a supplied loader name.
+        // Profile metadata is optional so older databases remain able to authenticate.
+        try {
+          const owner = await env.LICENSE_DB.prepare('SELECT discord_username FROM website_account_licenses WHERE license_id=?')
+            .bind(row.id).first();
+          const name = owner?.discord_username;
+          if (typeof name === 'string' && name.trim() && [...name].length <= 32 && !/[\u0000-\u001f\u007f]/u.test(name))
+            discordName = name.trim();
+        } catch { /* Missing optional account tables do not change license validation. */ }
+        return Response.json({ ok: true, profile: { discordName } }, { headers: { 'Cache-Control': 'no-store' } });
+      }
       const object = await env.DLL_BUCKET.get(game.objectKey);
       if (!object) return fail(404, 'This game DLL has not been uploaded');
       if (object.size < 64 || object.size > 256 * 1024 * 1024) return fail(503, 'Download unavailable');

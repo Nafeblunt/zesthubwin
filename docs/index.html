@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docs | Zest Hub</title>
+  <link rel="icon" href="/ZestIco.png" type="image/png">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/shell.js" defer></script>
+  <script src="/script.js" defer></script>
+</head>
+<body data-community="docs">
+  <div id="site-header" data-page="Docs"></div>
+
+  <main class="community-main docs">
+    <aside class="sidebar">
+      <header class="community-header"><h1>Docs</h1></header>
+      <div class="chat sidebar-panel docs-nav-panel">
+        <header class="chat-header"><div><h2>Lua</h2></div></header>
+        <nav class="docs-nav" aria-label="Docs sections">
+          <a href="#start">Getting started</a>
+          <a href="#events">Events</a>
+          <a href="#cmd">cmd</a>
+          <a href="#game-events">Game events</a>
+          <a href="#ui">zest.ui</a>
+          <a href="#draw">zest.draw</a>
+          <a href="#player">Players</a>
+          <a href="#weapon">zest.weapon</a>
+          <a href="#config">zest.config</a>
+          <a href="#ragebot">zest.ragebot</a>
+          <a href="#misc">Misc</a>
+          <a href="#buttons">Buttons</a>
+          <a href="#limits">Limits</a>
+          <a href="#examples">Examples</a>
+        </nav>
+      </div>
+    </aside>
+
+    <div class="docs-body">
+
+      <section class="chat" id="start">
+        <header class="chat-header"><div><h2>Getting started</h2></div></header>
+        <div class="docs-content">
+          <p>Lua 5.4, all our stuff is in <code>zest</code></p>
+          <p>hit the <code>&lt;/&gt;</code> button next to configs to open the editor, new script on the left, write it, press <b>Run</b>, if it breaks the console under the editor tells you the line</p>
+          <p>scripts are just <code>.lua</code> files in <code>luas</code> in your config folder so you can use vs code or whatever and press <b>Reload</b></p>
+<pre><code>zest.ui.checkbox("on", "Show speed", true)
+
+zest.events.on("paint", function()
+    if not zest.ui.get("on") then return end
+    local me = zest.local_player()
+    if not me then return end
+    local w, h = zest.screen()
+    zest.draw.text(w / 2 + 20, h / 2, math.floor(me.speed) .. " u/s", 255, 255, 255, 255)
+end)</code></pre>
+        </div>
+      </section>
+
+      <section class="chat" id="events">
+        <header class="chat-header"><div><h2>Events</h2></div></header>
+        <div class="docs-content">
+          <p><code>zest.events.on(name, fn)</code></p>
+          <table>
+            <tr><th>Name</th><th>When</th><th>Arg</th></tr>
+            <tr><td><code>paint</code></td><td>every frame, only place you can draw</td><td>-</td></tr>
+            <tr><td><code>createmove</code></td><td>when the game builds a command, before prediction and ragebot, can fire twice for one <code>command_number</code></td><td><a href="#cmd">cmd</a></td></tr>
+            <tr><td><code>unload</code></td><td>script stopped or reloaded</td><td>-</td></tr>
+            <tr><td>any CS2 event</td><td>whenever the game fires it (<code>player_death</code> and so on)</td><td><a href="#game-events">event</a></td></tr>
+          </table>
+          <p>you can register the same event twice, they run in order</p>
+        </div>
+      </section>
+
+      <section class="chat" id="cmd">
+        <header class="chat-header"><div><h2>cmd</h2></div></header>
+        <div class="docs-content">
+          <p>what <code>createmove</code> gives you, change a field and it goes into the command</p>
+          <table>
+            <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+            <tr><td><code>command_number</code></td><td>int</td><td>read only</td></tr>
+            <tr><td><code>buttons</code></td><td>int</td><td><a href="#buttons">flags</a></td></tr>
+            <tr><td><code>forwardmove</code></td><td>number</td><td>-1 to 1, + is forward</td></tr>
+            <tr><td><code>sidemove</code></td><td>number</td><td>-1 to 1, + is left</td></tr>
+            <tr><td><code>viewangles</code></td><td>{x, y, z}</td><td>x pitch, y yaw, this is what the server sees, movement gets fixed for it like our anti-aim does</td></tr>
+          </table>
+<pre><code>zest.events.on("createmove", function(cmd)
+    -- duck in air
+    local me = zest.local_player()
+    if me and not me.on_ground then
+        cmd.buttons = cmd.buttons | zest.IN_DUCK
+    end
+end)</code></pre>
+          <p>pitch gets clamped to -89..89 and ragebot runs after you, it overrides angles on the tick it shoots</p>
+        </div>
+      </section>
+
+      <section class="chat" id="game-events">
+        <header class="chat-header"><div><h2>Game events</h2></div></header>
+        <div class="docs-content">
+          <p>every cs2 game event works, just use the name</p>
+<pre><code>zest.events.on("player_death", function(e)
+    local victim = e:get_player("userid")
+    local killer = e:get_player("attacker")
+    if killer and killer.is_local then
+        zest.log("killed " .. victim.name .. (e.headshot and " (hs)" or ""))
+    end
+end)</code></pre>
+          <table>
+            <tr><th>Call</th><th>Returns</th></tr>
+            <tr><td><code>e.name</code></td><td>event name</td></tr>
+            <tr><td><code>e.whatever</code></td><td>the field, number, string, or nil if its not there</td></tr>
+            <tr><td><code>e:get(key)</code></td><td>same as <code>e.key</code></td></tr>
+            <tr><td><code>e:get_string</code> <code>get_int</code> <code>get_float</code> <code>get_bool</code></td><td>typed versions</td></tr>
+            <tr><td><code>e:get_player(key)</code></td><td><code>{name, is_local}</code> for <code>userid</code> / <code>attacker</code> style fields, or nil</td></tr>
+          </table>
+          <p>dont keep <code>e</code> around after the callback, its dead by then so copy what you need</p>
+          <p>ones youll probably use: <code>player_death</code> <code>player_hurt</code> <code>player_changename</code> <code>round_start</code> <code>round_end</code> <code>weapon_fire</code> <code>bullet_impact</code> <code>bomb_planted</code> <code>bomb_defused</code> <code>item_purchase</code></p>
+          <p>editor autocompletes names and fields inside quotes</p>
+        </div>
+      </section>
+
+      <section class="chat" id="ui">
+        <header class="chat-header"><div><h2>zest.ui</h2></div></header>
+        <div class="docs-content">
+          <p>adds stuff to the menu, one panel per script, controls only get made once so reloading wont reset them</p>
+          <table>
+            <tr><th>Function</th><th>get() gives</th></tr>
+            <tr><td><code>zest.ui.tab(name, icon)</code></td><td>everything after this goes in its own tab under Lua in the sidebar</td></tr>
+            <tr><td><code>zest.ui.checkbox(id, label, default)</code></td><td>bool</td></tr>
+            <tr><td><code>zest.ui.slider(id, label, default, min, max)</code></td><td>number</td></tr>
+            <tr><td><code>zest.ui.combo(id, label, {items}, default)</code></td><td>index (starts at 1), text</td></tr>
+            <tr><td><code>zest.ui.input(id, label, text)</code></td><td>string</td></tr>
+            <tr><td><code>zest.ui.button(id, label)</code></td><td>true once per click</td></tr>
+            <tr><td><code>zest.ui.label(id, text)</code></td><td>string</td></tr>
+            <tr><td><code>zest.ui.get(id)</code></td><td>see above</td></tr>
+            <tr><td><code>zest.ui.set(id, value)</code></td><td>sets it (changes text on labels)</td></tr>
+          </table>
+          <p>icons: <code>code</code> <code>star</code> <code>user</code> <code>bolt</code> <code>eye</code> <code>gear</code> <code>palette</code> <code>pen</code> <code>tag</code> <code>crosshairs</code> <code>music</code> <code>globe</code> <code>shield</code> <code>fire</code> <code>heart</code> <code>magic</code> <code>signature</code> <code>font</code> <code>keyboard</code> <code>gamepad</code> <code>skull</code> <code>chart</code> <code>id</code></p>
+          <p>anything else = <code>code</code>, no <code>tab()</code> call = tab named Lua</p>
+<pre><code>zest.ui.tab("Movement", "bolt")
+zest.ui.checkbox("bhop", "Bunny hop", false)
+zest.ui.combo("mode", "Mode", {"Rage", "Legit"}, 1)
+
+local mode, name = zest.ui.get("mode")   -- 1, "Rage"</code></pre>
+        </div>
+      </section>
+
+      <section class="chat" id="draw">
+        <header class="chat-header"><div><h2>zest.draw</h2></div></header>
+        <div class="docs-content">
+          <p><code>paint</code> only, screen pixels, colors 0-255, alpha is 255 if you skip it</p>
+<pre><code>text(x, y, text, r, g, b, a, size)
+measure_text(text, size)              -- w, h
+line(x1, y1, x2, y2, r, g, b, a, thickness)
+rect(x, y, w, h, r, g, b, a, rounding, thickness)
+filled_rect(x, y, w, h, r, g, b, a, rounding)
+circle(x, y, radius, r, g, b, a, thickness)
+filled_circle(x, y, radius, r, g, b, a)</code></pre>
+          <p><code>zest.world_to_screen(x, y, z)</code> (or a <code>{x, y, z}</code> table) gives <code>sx, sy</code> or nothing if its behind you</p>
+<pre><code>zest.events.on("paint", function()
+    for _, p in ipairs(zest.players()) do
+        if p.enemy and p.alive then
+            local x, y = zest.world_to_screen(p.origin)
+            if x then
+                local text = p.name .. " " .. p.health
+                local w = zest.draw.measure_text(text)
+                zest.draw.text(x - w / 2, y, text, 255, 255, 255, 255)
+            end
+        end
+    end
+end)</code></pre>
+        </div>
+      </section>
+
+      <section class="chat" id="player">
+        <header class="chat-header"><div><h2>Players</h2></div></header>
+        <div class="docs-content">
+          <p><code>zest.local_player()</code> is you (nil if not in game), <code>zest.players()</code> is everyone else</p>
+          <table>
+            <tr><th>Field</th><th>Type</th></tr>
+            <tr><td><code>name</code></td><td>string</td></tr>
+            <tr><td><code>health</code> <code>armor</code> <code>team</code></td><td>int</td></tr>
+            <tr><td><code>alive</code> <code>enemy</code> <code>on_ground</code> <code>ducking</code></td><td>bool</td></tr>
+            <tr><td><code>speed</code></td><td>horizontal speed</td></tr>
+            <tr><td><code>velocity</code> <code>origin</code> <code>eye_angles</code></td><td>{x, y, z}</td></tr>
+            <tr><td><code>weapon</code></td><td>config group: <code>Scout</code> <code>Awp</code> <code>AutoSniper</code> <code>Deagle</code> <code>Revolver</code> <code>Pistol</code> <code>Global</code>, nil with nothing out</td></tr>
+            <tr><td><code>weapon_name</code> <code>weapon_id</code></td><td>"ssg 08", 40</td></tr>
+          </table>
+          <p><code>weapon</code> uses the same names as the config so you can do:</p>
+<pre><code>local me = zest.local_player()
+local md = me and me.weapon and zest.config.get(me.weapon .. "_MinimumDamage")</code></pre>
+        </div>
+      </section>
+
+      <section class="chat" id="weapon">
+        <header class="chat-header"><div><h2>zest.weapon</h2></div></header>
+        <div class="docs-content">
+          <p>your current gun or nil, same <code>weapon</code> / <code>weapon_name</code> / <code>weapon_id</code> as players, plus:</p>
+          <table>
+            <tr><th>Field</th><th>Notes</th></tr>
+            <tr><td><code>ready</code></td><td>can shoot now</td></tr>
+            <tr><td><code>ammo</code></td><td>clip</td></tr>
+            <tr><td><code>reloading</code> <code>scoped</code></td><td>bool</td></tr>
+            <tr><td><code>inaccuracy</code> <code>spread</code></td><td>predicted for this command, missing if there's no prediction yet</td></tr>
+            <tr><td><code>max_speed</code></td><td>max speed with it out (scoped speed if scoped)</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section class="chat" id="config">
+        <header class="chat-header"><div><h2>zest.config</h2></div></header>
+        <div class="docs-content">
+          <p>get/set any setting with its name from the config file, not case sensitive</p>
+          <table>
+            <tr><th>Function</th><th>Notes</th></tr>
+            <tr><td><code>zest.config.get(name)</code></td><td>bool, number, string, list or color <code>{r, g, b, a}</code>, nil if it doesnt exist</td></tr>
+            <tr><td><code>zest.config.set(name, value)</code></td><td>true if it worked, false if wrong type</td></tr>
+            <tr><td><code>zest.config.list(filter)</code></td><td><code>{name, type}</code> for every setting with filter in the name</td></tr>
+          </table>
+<pre><code>zest.config.set("Bunnyhop", true)
+zest.config.set("Scout_Hitchance", 60)
+zest.config.set("EnemyVisible_Color", {r = 255, g = 80, b = 200, a = 255})
+
+for _, v in ipairs(zest.config.list("scout")) do
+    zest.log(v.name, v.type)
+end</code></pre>
+          <p>weapon settings are prefixed with the group: <code>Global_</code> <code>AutoSniper_</code> <code>Scout_</code> <code>Awp_</code> <code>Deagle_</code> <code>Revolver_</code> <code>Pistol_</code>, so <code>Scout_MinimumDamage</code></p>
+          <p>lists like <code>Scout_Hitboxes</code> cant change length, extra stuff gets ignored</p>
+        </div>
+      </section>
+
+      <section class="chat" id="ragebot">
+        <header class="chat-header"><div><h2>zest.ragebot</h2></div></header>
+        <div class="docs-content">
+          <table>
+            <tr><th>Function</th><th>Notes</th></tr>
+            <tr><td><code>zest.ragebot.hold()</code></td><td>in <code>createmove</code>, stops it shooting this command</td></tr>
+            <tr><td><code>zest.ragebot.target()</code></td><td><code>{name, damage, hitchance, hitgroup, health, point}</code> or nil</td></tr>
+          </table>
+<pre><code>-- only shoot at the top of the jump
+zest.events.on("createmove", function(cmd)
+    local me = zest.local_player()
+    if me and not me.on_ground and math.abs(me.velocity.z) > 20 then
+        zest.ragebot.hold()
+    end
+end)</code></pre>
+        </div>
+      </section>
+
+      <section class="chat" id="misc">
+        <header class="chat-header"><div><h2>Misc</h2></div></header>
+        <div class="docs-content">
+          <table>
+            <tr><th>Function</th><th>Notes</th></tr>
+            <tr><td><code>zest.log(...)</code></td><td>print to editor console</td></tr>
+            <tr><td><code>zest.screen()</code></td><td>w, h</td></tr>
+            <tr><td><code>zest.time()</code></td><td>seconds</td></tr>
+            <tr><td><code>zest.frametime()</code></td><td>seconds since last frame</td></tr>
+            <tr><td><code>zest.in_game()</code> <code>zest.menu_open()</code></td><td>bool</td></tr>
+            <tr><td><code>zest.key_down(vk)</code></td><td>windows vk code, <code>0x20</code> = space</td></tr>
+            <tr><td><code>zest.cvar(name)</code></td><td>value + flags, <code>sv_gravity</code> gives 800, <code>sv_cheats</code> gives false</td></tr>
+            <tr><td><code>zest.exec(command)</code></td><td>run a console command</td></tr>
+            <tr><td><code>zest.get_name()</code> <code>zest.set_name(name)</code></td><td>your name, most servers block changing it</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section class="chat" id="buttons">
+        <header class="chat-header"><div><h2>Buttons</h2></div></header>
+        <div class="docs-content">
+          <p>For <code>cmd.buttons</code>: <code>zest.IN_ATTACK</code> <code>zest.IN_ATTACK2</code> <code>zest.IN_JUMP</code> <code>zest.IN_DUCK</code> <code>zest.IN_FORWARD</code> <code>zest.IN_BACK</code> <code>zest.IN_MOVELEFT</code> <code>zest.IN_MOVERIGHT</code> <code>zest.IN_USE</code> <code>zest.IN_RELOAD</code> <code>zest.IN_SPRINT</code></p>
+<pre><code>if cmd.buttons &amp; zest.IN_JUMP ~= 0 then ... end   -- holding jump
+cmd.buttons = cmd.buttons | zest.IN_DUCK             -- press duck
+cmd.buttons = cmd.buttons &amp; ~zest.IN_ATTACK          -- release attack</code></pre>
+        </div>
+      </section>
+
+      <section class="chat" id="limits">
+        <header class="chat-header"><div><h2>Limits</h2></div></header>
+        <div class="docs-content">
+          <ul>
+            <li>25 ms per callback, 500 ms to load, go over and the script gets killed so infinite loops wont freeze your game</li>
+            <li>errors kill the script too, fix it and hit Run</li>
+            <li>max 256 ui controls per script</li>
+            <li>normal libs work (string, table, math, utf8, os, io) but no <code>os.exit</code></li>
+            <li>if your script does the same thing as a built-in feature turn the built-in off or theyll fight</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="chat" id="examples">
+        <header class="chat-header"><div><h2>Examples</h2></div></header>
+        <div class="docs-content">
+          <h3>Min damage on crosshair</h3>
+<pre><code>zest.ui.checkbox("on", "Show min damage", true)
+
+zest.events.on("paint", function()
+    if not zest.ui.get("on") then return end
+    local me = zest.local_player()
+    local md = me and me.weapon and zest.config.get(me.weapon .. "_MinimumDamage")
+    if not md then return end
+    local w, h = zest.screen()
+    zest.draw.text(w / 2 + 20, h / 2 + 10, math.floor(md) .. "md", 255, 255, 255, 255)
+end)</code></pre>
+
+          <h3>Anti-aim</h3>
+<pre><code>zest.ui.tab("Anti-aim", "shield")
+zest.ui.checkbox("on", "Enabled", false)
+zest.ui.combo("yaw", "Yaw", {"Backwards", "Jitter", "Spin"}, 1)
+zest.ui.slider("range", "Jitter range", 30, 0, 90)
+
+local spin, flip = 0, false
+
+zest.events.on("createmove", function(cmd)
+    if not zest.ui.get("on") or cmd.buttons &amp; zest.IN_USE ~= 0 then return end
+    cmd.viewangles.x = 89
+    local yaw = cmd.viewangles.y + 180
+    local mode = zest.ui.get("yaw")
+    if mode == 2 then
+        flip = not flip
+        yaw = yaw + (flip and 1 or -1) * zest.ui.get("range")
+    elseif mode == 3 then
+        spin = (spin + 15) % 360
+        yaw = spin
+    end
+    cmd.viewangles.y = yaw
+end)</code></pre>
+
+          <h3>Damage log</h3>
+<pre><code>zest.events.on("player_hurt", function(e)
+    local attacker = e:get_player("attacker")
+    local victim = e:get_player("userid")
+    if attacker and attacker.is_local and victim then
+        zest.log(("hit %s for %d (%d left)"):format(victim.name, e.dmg_health, e.health))
+    end
+end)</code></pre>
+
+          <h3>Toggle thirdperson on F</h3>
+<pre><code>local was_down = false
+
+zest.events.on("paint", function()
+    local down = zest.key_down(0x46) -- F
+    if down and not was_down then
+        zest.config.set("Thirdperson", not zest.config.get("Thirdperson"))
+    end
+    was_down = down
+end)</code></pre>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</body>
+</html>

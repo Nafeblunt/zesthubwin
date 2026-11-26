@@ -1294,3 +1294,134 @@ body[data-community="forum"] .community-main > .chat:nth-child(2) {
     transform: none;
   }
 }
+
+
+/* 14. Docs (uses the same panels and sidebar as Forum)
+   ========================================================================== */
+
+body[data-community="docs"] .community-main {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  column-gap: 28px;
+  align-items: start;
+  width: calc(100% - 48px);
+  max-width: 1200px;
+}
+
+body[data-community="docs"] .sidebar {
+  position: sticky;
+  top: 24px;
+}
+
+/* Line the first section up with the sidebar panel, like Forum. */
+.docs-body {
+  margin-top: 62px;
+  min-width: 0;
+}
+
+.docs-body > .chat {
+  margin: 0 0 28px;
+  scroll-margin-top: 24px;
+}
+
+.docs-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.docs-nav a {
+  padding: 6px 20px;
+  color: #9d91ac;
+  font-size: 13px;
+  text-decoration: none;
+  transition: color .2s ease;
+}
+
+.docs-nav a:hover {
+  color: var(--chat-accent);
+}
+
+.docs-content {
+  padding: 16px 20px;
+  color: #ddd;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.docs-content > :first-child { margin-top: 0; }
+.docs-content > :last-child { margin-bottom: 0; }
+
+.docs-content a { color: var(--chat-accent); }
+
+.docs-content h3 {
+  margin: 22px 0 8px;
+  color: #d0baff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.docs-content code {
+  padding: 1px 5px;
+  border: 1px solid var(--panel-divider);
+  border-radius: 4px;
+  background: var(--panel-header);
+  color: #e6e6e6;
+  font-size: 12px;
+}
+
+.docs-content pre {
+  overflow-x: auto;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--panel-divider);
+  border-radius: 8px;
+  background: #0c0c0d;
+  line-height: 1.5;
+}
+
+.docs-content pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.docs-content table {
+  width: 100%;
+  margin: 14px 0;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.docs-content th,
+.docs-content td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--panel-divider);
+  text-align: left;
+  vertical-align: top;
+}
+
+.docs-content th {
+  color: #8f8f9b;
+  font-weight: normal;
+}
+
+.docs-content ul { padding-left: 18px; }
+
+@media (max-width: 760px) {
+  body[data-community="docs"] .community-main {
+    grid-template-columns: 1fr;
+    width: calc(100% - 32px);
+  }
+
+  body[data-community="docs"] .sidebar { position: static; }
+
+  .docs-body { margin-top: 0; }
+
+  .docs-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .docs-nav a { padding: 4px 12px; }
+}

@@ -16,6 +16,7 @@
       <a class="button-link" href="/Forum">Forum</a>
       <a class="button-link" href="/Market">Market</a>
       <a class="button-link" href="/Chat">Chat</a>
+      <a class="button-link" href="/docs">Docs</a>
     </nav>
     <section class="login" id="login" aria-label="Account">
       <button class="login-btn" id="login-btn" type="button" title="Log in with Discord">Log in</button>

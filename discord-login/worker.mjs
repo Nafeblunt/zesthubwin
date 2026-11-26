@@ -10,7 +10,11 @@ const REDIRECT = 'https://login.zesthub.win/callback';
 const SESSION = '__Host-zest_session';
 const STATE = '__Host-zest_oauth_state';
 const RETURN = '__Host-zest_return';
-const TIMEOUT = 7 * 86400;
+// Sessions last 30 days and get renewed (at most once a day) while you keep using the site.
+const TIMEOUT = 30 * 86400;
+const RENEW_AFTER = 86400;
+// Last good Discord lookup per user, so a Discord rate limit or outage doesn't look like a logout.
+const profileCache = new Map();
 const random = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2, '0')).join('');
 const sha = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), n => n.toString(16).padStart(2, '0')).join('');
 const cookie = (name, value, age) => `${name}=${value}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${age}`;
@@ -81,6 +85,19 @@ export async function getDiscordAccess(discordId, env) {
   return { role, marketOwner, shoutboxWriter: marketOwner || dev,
     buyer: guildData.owner_id === discordId || assigned.some(role =>
     role.position > buyer.position || (role.position === buyer.position && BigInt(role.id) <= BigInt(buyer.id))) };
+}
+
+async function getProfile(discordId, env) {
+  try {
+    const [access, avatarUrl] = await Promise.all([getDiscordAccess(discordId, env), getDiscordAvatar(discordId, env)]);
+    const profile = { access, avatarUrl };
+    profileCache.set(discordId, profile);
+    return profile;
+  } catch {
+    // Still signed in, Discord just didn't answer. Use the last result or plain member defaults.
+    return profileCache.get(discordId) || { access: { role: 'Member', buyer: false, marketOwner: false, shoutboxWriter: false },
+      avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png' };
+  }
 }
 
 export async function hasBuyerAccess(discordId, env) { return (await getDiscordAccess(discordId, env)).buyer; }
@@ -332,11 +349,17 @@ export default {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
         const token = cookies(request)[SESSION];
         if (!token || !/^[a-f0-9]{64}$/.test(token)) return json(request, { user: null, buyer: false });
-        const row = await env.DB.prepare('SELECT discord_id,username FROM website_sessions WHERE session_hash=? AND expires_at>?')
-          .bind(await sha(token), Math.floor(Date.now() / 1000)).first();
+        const hash = await sha(token), now = Math.floor(Date.now() / 1000);
+        const row = await env.DB.prepare('SELECT discord_id,username,expires_at FROM website_sessions WHERE session_hash=? AND expires_at>?')
+          .bind(hash, now).first();
         if (!row) return json(request, { user: null, buyer: false });
-        const [access, avatarUrl] = await Promise.all([getDiscordAccess(row.discord_id, env), getDiscordAvatar(row.discord_id, env)]);
-        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role, avatarUrl }, buyer: access.buyer, marketOwner: access.marketOwner, shoutboxWriter: access.shoutboxWriter });
+        const { access, avatarUrl } = await getProfile(row.discord_id, env);
+        const renew = [];
+        if (Number.isInteger(row.expires_at) && row.expires_at < now + TIMEOUT - RENEW_AFTER) {
+          await env.DB.prepare('UPDATE website_sessions SET expires_at=? WHERE session_hash=?').bind(now + TIMEOUT, hash).run();
+          renew.push(cookie(SESSION, token, TIMEOUT));
+        }
+        return json(request, { user: { id: row.discord_id, name: row.username, role: access.role, avatarUrl }, buyer: access.buyer, marketOwner: access.marketOwner, shoutboxWriter: access.shoutboxWriter }, 200, renew);
       }
       if (url.pathname === '/logout' && request.method === 'POST') {
         if (request.headers.get('Origin') !== SITE) return json(request, { error: 'Forbidden' }, 403);
@@ -352,6 +375,8 @@ export default {
     }
   },
   async scheduled(_event, env) {
+    try { await env.DB.prepare('DELETE FROM website_sessions WHERE expires_at<=?').bind(Math.floor(Date.now() / 1000)).run(); }
+    catch { console.error('Could not clean up expired sessions'); }
     try { await retryRedeemedBuyerRoles(env); }
     catch { console.error('Website buyer roles require reconciliation'); }
     if (env.PAYMENTS_SANDBOX_ENABLED !== 'true' || !env.SANDBOX_DB || !env.PAYPAL_SANDBOX_WEBHOOK_ID ||
